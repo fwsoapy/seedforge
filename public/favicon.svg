@@ -1,27 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="SeedForge">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges" role="img" aria-label="SeedForge">
   <title>SeedForge</title>
-  <defs>
-    <linearGradient id="sf-top" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8ae89b"/>
-      <stop offset="1" stop-color="#5ac36a"/>
-    </linearGradient>
-    <linearGradient id="sf-left" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#43a353"/>
-      <stop offset="1" stop-color="#2c7d40"/>
-    </linearGradient>
-    <linearGradient id="sf-right" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#3a9450"/>
-      <stop offset="1" stop-color="#1f5c30"/>
-    </linearGradient>
-  </defs>
-
-  <!-- isometric cube: one block, the unit a seed is grown from -->
-  <path d="M32 6 58 20 32 34 6 20z" fill="url(#sf-top)"/>
-  <path d="M6 20 32 34v24L6 44z" fill="url(#sf-left)"/>
-  <path d="M58 20 32 34v24l26-14z" fill="#24683a"/>
-
-  <!-- sprout on the top face: the "seed" half of the name -->
-  <path d="M32 21v-7" stroke="#123a1d" stroke-width="2.4" stroke-linecap="round" fill="none"/>
-  <path d="M32 16c-4.6 0-7-2.4-7-6 3.9-.7 7 1.4 7 6z" fill="#123a1d"/>
-  <path d="M32 18c4.2-1.1 5.9-3.9 5-7.6-3.7.4-5.9 3.1-5 7.6z" fill="#1b5029"/>
+  <!--
+    Pixel-art scatter of seeds, 16x16, transparent ground.
+    Drawn for this project rather than lifted from the game's own art.
+  -->
+  <g fill="#57c422">
+    <rect x="4" y="1" width="1" height="1"/>
+    <rect x="4" y="2" width="1" height="1"/>
+    <rect x="11" y="1" width="1" height="1"/>
+    <rect x="11" y="2" width="1" height="1"/>
+    <rect x="12" y="2" width="1" height="1"/>
+    <rect x="3" y="4" width="1" height="1"/>
+  </g>
+  <g fill="#4fae22">
+    <rect x="3" y="3" width="1" height="1"/>
+    <rect x="3" y="5" width="1" height="1"/>
+    <rect x="12" y="3" width="1" height="1"/>
+    <rect x="7" y="7" width="1" height="1"/>
+    <rect x="6" y="10" width="1" height="1"/>
+  </g>
+  <g fill="#8f9c26">
+    <rect x="6" y="5" width="1" height="1"/>
+    <rect x="6" y="6" width="1" height="1"/>
+    <rect x="7" y="6" width="1" height="1"/>
+    <rect x="11" y="10" width="1" height="1"/>
+    <rect x="12" y="10" width="1" height="1"/>
+  </g>
+  <g fill="#3c8a1a">
+    <rect x="2" y="6" width="1" height="1"/>
+    <rect x="2" y="7" width="1" height="1"/>
+    <rect x="9" y="5" width="1" height="1"/>
+    <rect x="10" y="5" width="1" height="1"/>
+    <rect x="12" y="6" width="1" height="1"/>
+    <rect x="13" y="6" width="1" height="1"/>
+    <rect x="8" y="8" width="1" height="1"/>
+    <rect x="9" y="8" width="1" height="1"/>
+    <rect x="3" y="10" width="1" height="1"/>
+    <rect x="3" y="11" width="1" height="1"/>
+    <rect x="4" y="11" width="1" height="1"/>
+    <rect x="6" y="11" width="1" height="1"/>
+    <rect x="7" y="12" width="1" height="1"/>
+    <rect x="12" y="11" width="1" height="1"/>
+    <rect x="10" y="12" width="1" height="1"/>
+    <rect x="11" y="12" width="1" height="1"/>
+  </g>
+  <g fill="#93a32c">
+    <rect x="8" y="12" width="1" height="1"/>
+    <rect x="13" y="11" width="1" height="1"/>
+    <rect x="5" y="12" width="1" height="1"/>
+  </g>
 </svg>
