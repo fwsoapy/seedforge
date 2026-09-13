@@ -19,13 +19,26 @@ export interface Criterion {
   id: number;
   /** Variant group key -> selected option value (`null` = Any). */
   variants: Record<string, string | null>;
+  /** This criterion's own maximum distance from the target point, in blocks. */
+  radius: number;
+}
+
+/**
+ * "These two criteria must generate within `maxDist` blocks of each other."
+ * Indices refer to positions in the criteria array.
+ */
+export interface ProximityRule {
+  a: number;
+  b: number;
+  maxDist: number;
 }
 
 export interface SearchConfig {
   mc: number;
-  radius: number;
   target: TargetMode;
   criteria: Criterion[];
+  /** Extra AND conditions between pairs of criteria. */
+  rules: ProximityRule[];
   /** First seed to test. Only the low 48 bits affect structure placement. */
   startSeed: bigint;
   /** Stop after this many seeds; 0 means "keep going until stopped". */

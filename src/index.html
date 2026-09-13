@@ -32,14 +32,6 @@
           </label>
 
           <label class="field">
-            <span>Max distance from spawn</span>
-            <span class="with-unit">
-              <input id="radius" type="number" min="16" max="100000" step="16" value="500" />
-              <span class="unit">blocks</span>
-            </span>
-          </label>
-
-          <label class="field">
             <span>Measure from</span>
             <select id="target">
               <option value="0">World origin (0, 0) - fastest</option>
@@ -71,6 +63,19 @@
             <p class="hint">Leave a dropdown on "Any" to not care about that detail.</p>
           </div>
           <div id="selected-list" class="selected-list"></div>
+        </div>
+
+        <div class="section rules-section" hidden>
+          <div class="section-head">
+            <h2>Proximity rules</h2>
+            <p class="hint">
+              Extra conditions between two picks, on top of their own distance from spawn.
+            </p>
+          </div>
+          <div id="rules-list" class="rules-list"></div>
+          <button id="add-rule" class="secondary small" type="button" disabled>
+            Add proximity rule
+          </button>
         </div>
 
         <details class="advanced">

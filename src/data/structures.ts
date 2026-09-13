@@ -62,6 +62,11 @@ export interface VariantOption {
   /** Starting-piece footprint bounds in blocks squared (0 = unbounded). */
   readonly areaMin?: number;
   readonly areaMax?: number;
+  /**
+   * Starting-piece index from getVariant(). Bastion type, ruined portal
+   * template, or stronghold ring depending on the structure.
+   */
+  readonly subtype?: number;
 }
 
 export interface VariantGroup {
@@ -84,6 +89,84 @@ export interface StructureDef {
 }
 
 const ANY: VariantOption = { value: null, label: 'Any' };
+
+/**
+ * Ruined portal filters, kept as three independent groups so type, placement
+ * and template can each be set or left open on their own.
+ *
+ * Giant portals are their own set of three templates in the game, so picking
+ * "Giant" narrows the template list to 1-3; the template selector is numbered
+ * the way the game's own structure files are.
+ */
+const RUINED_PORTAL_TYPE: VariantGroup = {
+  key: 'portalType',
+  label: 'Portal type',
+  options: [
+    ANY,
+    { value: 'giant', label: 'Giant', traitReq: TRAIT.giant, traitMask: TRAIT.giant },
+    { value: 'normal', label: 'Normal', traitReq: 0, traitMask: TRAIT.giant },
+  ],
+};
+
+const RUINED_PORTAL_PLACEMENT: VariantGroup = {
+  key: 'portalPlacement',
+  label: 'Placement',
+  options: [
+    ANY,
+    { value: 'surface', label: 'Above ground', traitReq: 0, traitMask: TRAIT.underground },
+    { value: 'buried', label: 'Underground', traitReq: TRAIT.underground, traitMask: TRAIT.underground },
+  ],
+};
+
+const RUINED_PORTAL_TEMPLATE: VariantGroup = {
+  key: 'portalTemplate',
+  label: 'Template',
+  note: 'Which of the game\'s portal_N structure files was used. Giant portals only use templates 1-3.',
+  options: [
+    ANY,
+    ...Array.from({ length: 10 }, (_, i) => ({
+      value: String(i + 1),
+      label: `Template ${i + 1}`,
+      subtype: i + 1,
+    })),
+  ],
+};
+
+/**
+ * The four bastion remnant types. cubiomes exposes the chosen starting piece
+ * as getVariant().start, which maps directly onto them.
+ */
+const BASTION_TYPE: VariantGroup = {
+  key: 'bastionType',
+  label: 'Bastion type',
+  options: [
+    ANY,
+    { value: 'housing', label: 'Housing units', subtype: 0 },
+    { value: 'stables', label: 'Hoglin stables', subtype: 1 },
+    { value: 'treasure', label: 'Treasure room', subtype: 2 },
+    { value: 'bridge', label: 'Bridge', subtype: 3 },
+  ],
+};
+
+/**
+ * Strongholds generate in concentric rings. cubiomes can tell us which ring a
+ * stronghold belongs to and where it is, but not what is inside it - the
+ * piece layout (portal room orientation, libraries) is not modelled, so those
+ * are deliberately not offered as filters.
+ */
+const STRONGHOLD_RING: VariantGroup = {
+  key: 'ring',
+  label: 'Ring',
+  note: 'Ring 1 sits roughly 1280-2816 blocks out, and each ring after that is further again.',
+  options: [
+    ANY,
+    ...Array.from({ length: 8 }, (_, i) => ({
+      value: String(i + 1),
+      label: `Ring ${i + 1}`,
+      subtype: i + 1,
+    })),
+  ],
+};
 
 export const STRUCTURES: readonly StructureDef[] = [
   {
@@ -130,20 +213,7 @@ export const STRUCTURES: readonly StructureDef[] = [
     id: STRUCT.Ruined_Portal,
     name: 'Ruined portal',
     dim: 'overworld',
-    variants: [
-      {
-        key: 'shape',
-        label: 'Portal shape',
-        experimental: true,
-        options: [
-          ANY,
-          { value: 'giant', label: 'Giant portal', traitReq: TRAIT.giant, traitMask: TRAIT.giant },
-          { value: 'normal', label: 'Normal size', traitReq: 0, traitMask: TRAIT.giant },
-          { value: 'buried', label: 'Underground', traitReq: TRAIT.underground, traitMask: TRAIT.underground },
-          { value: 'surface', label: 'Surface', traitReq: 0, traitMask: TRAIT.underground },
-        ],
-      },
-    ],
+    variants: [RUINED_PORTAL_TYPE, RUINED_PORTAL_PLACEMENT, RUINED_PORTAL_TEMPLATE],
   },
   { id: STRUCT.Outpost, name: 'Pillager outpost', dim: 'overworld' },
   { id: STRUCT.Desert_Pyramid, name: 'Desert pyramid', dim: 'overworld', note: '1.18+ terrain height check is approximate' },
@@ -193,10 +263,28 @@ export const STRUCTURES: readonly StructureDef[] = [
       },
     ],
   },
-  { id: STRUCT.Stronghold, name: 'Stronghold', dim: 'overworld', note: 'The first ring never generates closer than ~1280 blocks. Slow to search.' },
+  {
+    id: STRUCT.Stronghold,
+    name: 'Stronghold',
+    dim: 'overworld',
+    note: 'The first ring never generates closer than ~1280 blocks. Slow to search.',
+    variants: [STRONGHOLD_RING],
+  },
   { id: STRUCT.Fortress, name: 'Nether fortress', dim: 'nether', note: 'Distance is measured in Nether coordinates' },
-  { id: STRUCT.Bastion, name: 'Bastion remnant', dim: 'nether', note: 'Distance is measured in Nether coordinates' },
-  { id: STRUCT.Ruined_Portal_N, name: 'Nether ruined portal', dim: 'nether', note: 'Distance is measured in Nether coordinates' },
+  {
+    id: STRUCT.Bastion,
+    name: 'Bastion remnant',
+    dim: 'nether',
+    note: 'Distance is measured in Nether coordinates',
+    variants: [BASTION_TYPE],
+  },
+  {
+    id: STRUCT.Ruined_Portal_N,
+    name: 'Nether ruined portal',
+    dim: 'nether',
+    note: 'Distance is measured in Nether coordinates',
+    variants: [RUINED_PORTAL_TYPE, RUINED_PORTAL_PLACEMENT, RUINED_PORTAL_TEMPLATE],
+  },
   { id: STRUCT.End_City, name: 'End city', dim: 'end', note: 'Never generates within 1008 blocks of the End origin' },
   { id: STRUCT.End_Gateway, name: 'End gateway', dim: 'end' },
 ] as const;

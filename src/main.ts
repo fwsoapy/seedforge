@@ -20,7 +20,6 @@ const $ = <T extends HTMLElement>(id: string): T => {
 };
 
 const versionSel = $<HTMLSelectElement>('version');
-const radiusInput = $<HTMLInputElement>('radius');
 const targetSel = $<HTMLSelectElement>('target');
 const startSeedInput = $<HTMLInputElement>('start-seed');
 const matchLimitInput = $<HTMLInputElement>('match-limit');
@@ -45,7 +44,7 @@ const nf = new Intl.NumberFormat();
 let meta: SearchEngine | null = null;
 let pool: SearchPool | null = null;
 let startedAt = 0;
-let lastRadius = 500;
+let lastRadii: number[] = [500];
 
 /** Seeds to scan with no match before suggesting the filters are too tight. */
 const SLOW_HINT_AFTER = 2_000_000;
@@ -78,19 +77,21 @@ function parseStartSeed(): bigint {
 }
 
 function buildConfig(picker: CriterionPicker): SearchConfig {
-  const radius = Number(radiusInput.value);
-  if (!Number.isFinite(radius) || radius < 1) throw new Error('Enter a distance of at least 1 block.');
-
   const criteria = picker.criteria();
   if (criteria.length === 0) throw new Error('Pick at least one structure or biome to search for.');
+  for (const c of criteria) {
+    if (!Number.isFinite(c.radius) || c.radius < 1) {
+      throw new Error('Every criterion needs a distance of at least 1 block.');
+    }
+  }
 
   const matchLimit = Math.max(1, Number(matchLimitInput.value) || 20);
 
   return {
     mc: Number(versionSel.value),
-    radius: Math.round(radius),
     target: Number(targetSel.value) as TargetMode,
     criteria,
+    rules: picker.proximityRules(),
     startSeed: parseStartSeed(),
     seedLimit: 0n,
     matchLimit,
@@ -127,7 +128,7 @@ function reportDone(matches: number, scanned: number, limit: number, stopped: bo
 
 function addMatches(matches: Match[]): void {
   emptyEl.hidden = true;
-  for (const m of matches) resultsEl.append(renderResult(m, lastRadius));
+  for (const m of matches) resultsEl.append(renderResult(m, lastRadii));
 }
 
 async function main(): Promise<void> {
@@ -162,6 +163,8 @@ async function main(): Promise<void> {
     $<HTMLElement>('biome-list'),
     $<HTMLElement>('selected-list'),
     $<HTMLElement>('selected-count'),
+    $<HTMLElement>('rules-list'),
+    $<HTMLButtonElement>('add-rule'),
     (kind: CriterionKind, id: number) => {
       const mc = Number(versionSel.value);
       return kind === KIND.biome ? meta!.supportsBiome(id, mc) : meta!.supports(id, mc);
@@ -182,7 +185,7 @@ async function main(): Promise<void> {
       return;
     }
 
-    lastRadius = config.radius;
+    lastRadii = config.criteria.map((c) => c.radius);
     startedAt = performance.now();
     statScanned.textContent = '0';
     statMatches.textContent = '0';

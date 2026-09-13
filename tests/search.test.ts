@@ -15,7 +15,8 @@ const MC_1_20 = 25;
 const MC_1_21_1 = 26;
 
 const MAX_OUT = 64;
-const CRIT_INTS = 8;
+const CRIT_INTS = 10;
+const PAIR_INTS = 3;
 const K_STRUCT = 0;
 const K_BIOME = 1;
 
@@ -25,6 +26,7 @@ let critPtr = 0;
 let seedsPtr = 0;
 let dataPtr = 0;
 let spawnPtr = 0;
+let pairPtr = 0;
 
 interface Hit {
   x: number;
@@ -48,13 +50,17 @@ function search(
   crits: number[][],
   start: bigint,
   count: number,
+  rules: number[][] = [],
 ): Found[] {
-  // [ kind, type, variant, traitReq, traitMask, areaMin, areaMax, sampleY ]
+  // [ kind, type, variant, traitReq, traitMask, areaMin, areaMax, sampleY,
+  //   radius, subtype ]
   const flat = crits.flatMap((c) => [
     c[0]!, c[1]!, c[2] ?? -1, c[3] ?? 0, c[4] ?? 0, c[5] ?? 0, c[6] ?? 0, c[7] ?? 0,
+    c[8] ?? radius, c[9] ?? -1,
   ]);
   M.HEAP32.set(flat, critPtr >> 2);
-  const rc = M._sf_configure(mc, radius, target, critPtr, crits.length);
+  M.HEAP32.set(rules.flat(), pairPtr >> 2);
+  const rc = M._sf_configure(mc, target, critPtr, crits.length, pairPtr, rules.length);
   expect(rc).toBe(crits.length);
 
   const n = M._sf_run(start, count, seedsPtr, dataPtr, spawnPtr, MAX_OUT);
@@ -81,6 +87,7 @@ beforeAll(async () => {
   maxCrit = M._sf_max_crit();
   expect(M._sf_crit_ints()).toBe(CRIT_INTS);
   critPtr = M._malloc(maxCrit * CRIT_INTS * 4);
+  pairPtr = M._malloc(M._sf_max_pairs() * PAIR_INTS * 4);
   seedsPtr = M._malloc(MAX_OUT * 8);
   dataPtr = M._malloc(MAX_OUT * maxCrit * 16);
   spawnPtr = M._malloc(MAX_OUT * 8);
@@ -193,7 +200,7 @@ describe('experimental village size filter', () => {
 });
 
 describe('biome criteria', () => {
-  const dd = () => [K_BIOME, 0, BIOME.deep_dark, 0, 0, 0, 0, biomeById(BIOME.deep_dark)!.sampleY];
+  const dd = () => [K_BIOME, 0, BIOME.deep_dark, 0, 0, 0, 0, biomeById(BIOME.deep_dark)!.sampleY, 400, -1];
 
   it('gates biomes by version like it gates structures', () => {
     expect(M._sf_biome_supported(BIOME.deep_dark, MC_1_18)).toBe(0);
@@ -230,9 +237,119 @@ describe('biome criteria', () => {
   });
 
   it('rejects a radius too large to sample', () => {
-    const flat = dd();
+    const flat = [...dd()];
+    flat[8] = 500_000;
     M.HEAP32.set(flat, critPtr >> 2);
-    expect(M._sf_configure(MC_1_21_1, 500_000, 0, critPtr, 1)).toBe(-5);
+    expect(M._sf_configure(MC_1_21_1, 0, critPtr, 1, pairPtr, 0)).toBe(-5);
+  });
+});
+
+describe('per-criterion distance', () => {
+  it('applies each criterion its own radius', () => {
+    // village must be tight to spawn, portal may be far
+    const found = search(
+      MC_1_21_1, 0, 0,
+      [[K_STRUCT, STRUCT.Village, -1, 0, 0, 0, 0, 0, 150],
+       [K_STRUCT, STRUCT.Ruined_Portal, -1, 0, 0, 0, 0, 0, 600]],
+      0n, 40_000,
+    );
+    expect(found.length).toBeGreaterThan(0);
+    for (const f of found) {
+      expect(Math.hypot(f.hits[0]!.x, f.hits[0]!.z)).toBeLessThanOrEqual(150);
+      expect(Math.hypot(f.hits[1]!.x, f.hits[1]!.z)).toBeLessThanOrEqual(600);
+    }
+    // The tight radius has to actually bite: at least one result would have
+    // been rejected by it if the radii were shared.
+    expect(found.some((f) => Math.hypot(f.hits[1]!.x, f.hits[1]!.z) > 150)).toBe(true);
+  });
+});
+
+describe('proximity rules', () => {
+  const pair = [
+    [K_STRUCT, STRUCT.Village, -1, 0, 0, 0, 0, 0, 800],
+    [K_STRUCT, STRUCT.Ruined_Portal, -1, 0, 0, 0, 0, 0, 800],
+  ];
+
+  it('keeps the two structures within the requested distance', () => {
+    const found = search(MC_1_21_1, 0, 0, pair, 0n, 60_000, [[0, 1, 120]]);
+    expect(found.length).toBeGreaterThan(0);
+    for (const f of found) {
+      const d = Math.hypot(f.hits[0]!.x - f.hits[1]!.x, f.hits[0]!.z - f.hits[1]!.z);
+      expect(d).toBeLessThanOrEqual(120);
+    }
+  });
+
+  it('is a real constraint, not a no-op', () => {
+    // Without the rule, the same query over the same range returns pairs that
+    // the rule would have rejected.
+    const loose = search(MC_1_21_1, 0, 0, pair, 0n, 60_000);
+    const over = loose.filter(
+      (f) => Math.hypot(f.hits[0]!.x - f.hits[1]!.x, f.hits[0]!.z - f.hits[1]!.z) > 120,
+    );
+    expect(over.length).toBeGreaterThan(0);
+  });
+
+  it('rejects a rule spanning two dimensions', () => {
+    const flat = [
+      [K_STRUCT, STRUCT.Village, -1, 0, 0, 0, 0, 0, 500, -1],
+      [K_STRUCT, STRUCT.Bastion, -1, 0, 0, 0, 0, 0, 500, -1],
+    ].flat();
+    M.HEAP32.set(flat, critPtr >> 2);
+    M.HEAP32.set([0, 1, 100], pairPtr >> 2);
+    expect(M._sf_configure(MC_1_21_1, 0, critPtr, 2, pairPtr, 1)).toBe(-8);
+  });
+
+  it('rejects a rule pointing at itself', () => {
+    M.HEAP32.set([K_STRUCT, STRUCT.Village, -1, 0, 0, 0, 0, 0, 500, -1], critPtr >> 2);
+    M.HEAP32.set([0, 0, 100], pairPtr >> 2);
+    expect(M._sf_configure(MC_1_21_1, 0, critPtr, 1, pairPtr, 1)).toBe(-7);
+  });
+});
+
+describe('bastion types', () => {
+  it('splits the bastions into four disjoint sets', () => {
+    const byType = [0, 1, 2, 3].map((sub) =>
+      search(
+        MC_1_21_1, 0, 0,
+        [[K_STRUCT, STRUCT.Bastion, -1, 0, 0, 0, 0, 0, 1200, sub]],
+        0n, 1_500,
+      ),
+    );
+    for (const set of byType) expect(set.length).toBeGreaterThan(0);
+
+    const key = (f: Found) => `${f.seed}:${f.hits[0]!.x},${f.hits[0]!.z}`;
+    const all = new Set<string>();
+    let total = 0;
+    for (const set of byType) {
+      for (const f of set) all.add(key(f));
+      total += set.length;
+    }
+    // No bastion is reported under two different types.
+    expect(all.size).toBe(total);
+  });
+});
+
+describe('stronghold rings', () => {
+  it('places each ring at its own distance band', () => {
+    const ring = (n: number, radius: number) =>
+      search(
+        MC_1_21_1, 0, 0,
+        [[K_STRUCT, STRUCT.Stronghold, -1, 0, 0, 0, 0, 0, radius, n]],
+        0n, 200,
+      );
+
+    const r1 = ring(1, 3_000);
+    const r2 = ring(2, 6_500);
+    expect(r1.length).toBeGreaterThan(0);
+    expect(r2.length).toBeGreaterThan(0);
+
+    // Ring 1 sits around 1280-2816 blocks; ring 2 is well beyond it.
+    for (const f of r1) {
+      expect(Math.hypot(f.hits[0]!.x, f.hits[0]!.z)).toBeLessThan(3_000);
+    }
+    for (const f of r2) {
+      expect(Math.hypot(f.hits[0]!.x, f.hits[0]!.z)).toBeGreaterThan(3_000);
+    }
   });
 });
 

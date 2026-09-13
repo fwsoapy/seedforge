@@ -52,7 +52,17 @@
 #define SF_TRAIT_CRACKED     (1u << 5)  /* geode with a crack */
 
 /* Number of int32 values per criterion in the sf_configure() input array. */
-#define SF_CRIT_INTS 8
+#define SF_CRIT_INTS 10
+
+/* Number of int32 values per proximity rule: [ critA, critB, maxDistance ]. */
+#define SF_PAIR_INTS 3
+#define SF_MAX_PAIRS 32
+
+/* Candidate positions kept per criterion when proximity rules are in play. */
+#define SF_MAX_CAND 24
+
+/* Subtype filter: "no constraint". */
+#define SF_ANY (-1)
 
 /* Criterion kinds. */
 #define SF_KIND_STRUCTURE 0
@@ -72,11 +82,20 @@ typedef struct
     int areaMin;    /* starting-piece footprint bounds, 0 = unconstrained */
     int areaMax;
     int sampleY;    /* biome criteria: block height to sample at */
+    int radius;     /* this criterion's own distance limit from the target */
+    int subtype;    /* bastion type / portal template / stronghold ring, or SF_ANY */
     int dim;        /* DIM_OVERWORLD / DIM_NETHER / DIM_END */
     int slot;       /* index in the caller's criteria array */
     StructureConfig sconf;
     int hasconf;
 } Crit;
+
+/* "structure A must be within maxDist blocks of structure B" */
+typedef struct
+{
+    int a, b;
+    int maxDist;
+} Pair;
 
 static Generator g_gen[3];      /* indexed by dim + 1 */
 static int       g_genready[3];
@@ -94,6 +113,15 @@ static int  g_bcells = 0;
 static int  g_bscale = 16;
 static int  g_bside = 0;        /* grid width/height in cells */
 static int  g_nbiome = 0;       /* how many criteria are biome criteria */
+static int  g_npair = 0;
+static Pair g_pair[SF_MAX_PAIRS];
+
+/* Candidate positions per criterion, filled when proximity rules are active. */
+static Pos g_cand[SF_MAX_CRIT][SF_MAX_CAND];
+static int g_ncand[SF_MAX_CRIT];
+static int g_candbiome[SF_MAX_CRIT][SF_MAX_CAND];
+static Pos g_chosen[SF_MAX_CRIT];
+static int g_chosenbiome[SF_MAX_CRIT];
 
 /* Last-run statistics, read back through sf_stat_*(). */
 static uint64_t g_scanned = 0;
@@ -162,21 +190,23 @@ int sf_mc_newest(void)
  * Returns the number of accepted criteria, or a negative error code.
  */
 EMSCRIPTEN_KEEPALIVE
-int sf_configure(int mc, int radius, int target, const int32_t *crit, int ncrit)
+int sf_configure(int mc, int target, const int32_t *crit, int ncrit,
+                 const int32_t *pairs, int npairs)
 {
     int i, d, pass;
     int n = 0;
+    int maxRadius = 0;
 
     if (ncrit < 0 || ncrit > SF_MAX_CRIT)
         return -1;
-    if (radius < 0)
-        return -2;
+    if (npairs < 0 || npairs > SF_MAX_PAIRS)
+        return -1;
 
     g_mc = mc;
-    g_radius = radius;
     g_target = target;
     g_ncrit = ncrit;
     g_nbiome = 0;
+    g_npair = npairs;
     g_needow = (target != SF_TARGET_ORIGIN);
 
     for (d = 0; d < 3; d++)
@@ -206,8 +236,15 @@ int sf_configure(int mc, int radius, int target, const int32_t *crit, int ncrit)
             c->areaMin = in[5];
             c->areaMax = in[6];
             c->sampleY = in[7];
+            c->radius  = in[8];
+            c->subtype = in[9];
             c->slot    = i;
             c->hasconf = 0;
+
+            if (c->radius < 0)
+                return -2;
+            if (c->radius > maxRadius)
+                maxRadius = c->radius;
 
             if (kind == SF_KIND_BIOME)
             {
@@ -238,6 +275,35 @@ int sf_configure(int mc, int radius, int target, const int32_t *crit, int ncrit)
         }
     }
 
+    /* Proximity rules refer to criteria by the caller's index; translate to
+     * the internal (structures-first) order. */
+    for (i = 0; i < npairs; i++)
+    {
+        int sa = pairs[i * SF_PAIR_INTS + 0];
+        int sb = pairs[i * SF_PAIR_INTS + 1];
+        int ia = -1, ib = -1, k;
+        if (sa == sb)
+            return -7;
+        for (k = 0; k < ncrit; k++)
+        {
+            if (g_crit[k].slot == sa) ia = k;
+            if (g_crit[k].slot == sb) ib = k;
+        }
+        if (ia < 0 || ib < 0)
+            return -7;
+        /* Distances only mean anything between structures in the same
+         * dimension - nether and overworld coordinates are not comparable. */
+        if (g_crit[ia].dim != g_crit[ib].dim)
+            return -8;
+        g_pair[i].a = ia;
+        g_pair[i].b = ib;
+        g_pair[i].maxDist = pairs[i * SF_PAIR_INTS + 2];
+        if (g_pair[i].maxDist < 0)
+            return -2;
+    }
+
+    g_radius = maxRadius;
+
     if (g_needow)
         g_genready[DIM_OVERWORLD + 1] = 1;
 
@@ -252,10 +318,14 @@ int sf_configure(int mc, int radius, int target, const int32_t *crit, int ncrit)
     if (g_nbiome > 0)
     {
         int64_t side;
+        int br = 0;
+        for (i = 0; i < ncrit; i++)
+            if (g_crit[i].kind == SF_KIND_BIOME && g_crit[i].radius > br)
+                br = g_crit[i].radius;
         g_bscale = 16;
         for (;;)
         {
-            side = (int64_t) (2 * radius) / g_bscale + 2;
+            side = (int64_t) (2 * br) / g_bscale + 2;
             if (side * side <= SF_BIOME_CELL_BUDGET)
                 break;
             if (g_bscale >= 256)
@@ -350,9 +420,16 @@ static int sf_traits_ok(const Crit *c, uint64_t seed, Pos p, int biome)
     StructureVariant sv;
     uint32_t t = 0;
 
-    if (!c->tmask && !c->areaMin && !c->areaMax)
+    if (!c->tmask && !c->areaMin && !c->areaMax && c->subtype == SF_ANY)
         return 1;
     if (!getVariant(&sv, c->type, g_mc, seed, p.x, p.z, biome))
+        return 0;
+
+    /* Subtype is the structure's starting piece index:
+     *   Bastion       0 housing units, 1 hoglin stables, 2 treasure, 3 bridge
+     *   Ruined portal 1..10 for normal portals, 1..3 for giant ones
+     * Both come straight out of getVariant()'s `start`. */
+    if (c->subtype != SF_ANY && (int) sv.start != c->subtype)
         return 0;
 
     /* Footprint of the starting piece. This is real data from getVariant(),
@@ -382,21 +459,47 @@ static int sf_traits_ok(const Crit *c, uint64_t seed, Pos p, int biome)
     return (t & c->tmask) == (c->treq & c->tmask);
 }
 
+/* Inserts a position into a distance-sorted candidate list (nearest first). */
+static void sf_insert(Pos *list, int *biomes, int *n, int max, Pos p, int biome,
+                      int cx, int cz)
+{
+    int64_t dx = (int64_t) p.x - cx, dz = (int64_t) p.z - cz;
+    int64_t d2 = dx * dx + dz * dz;
+    int i, j;
+
+    for (i = 0; i < *n; i++)
+    {
+        int64_t ex = (int64_t) list[i].x - cx, ez = (int64_t) list[i].z - cz;
+        if (d2 < ex * ex + ez * ez)
+            break;
+    }
+    if (i >= max)
+        return;
+    for (j = (*n < max ? *n : max - 1); j > i; j--)
+    {
+        list[j] = list[j - 1];
+        biomes[j] = biomes[j - 1];
+    }
+    list[i] = p;
+    biomes[i] = biome;
+    if (*n < max)
+        (*n)++;
+}
+
 /*
- * Looks for a biome within radius of (cx, cz) by generating one scaled grid
- * around the target and scanning it for the wanted id.
+ * Collects biome cells within radius of (cx, cz) by generating one scaled
+ * grid around the target and scanning it, nearest first.
  *
  * The grid is sampled at 1:16 where it fits, coarsening to 1:64 or 1:256 for
  * large radii. Coarse sampling can step over a patch smaller than the sample
  * spacing, so this can miss a small biome patch - it never invents one.
  */
-static int sf_find_biome(const Crit *c, int cx, int cz, int r, Pos *outpos)
+static int sf_collect_biome(const Crit *c, int cx, int cz, int r, Pos *out,
+                            int *biomes, int max)
 {
     Generator *g = sf_gen(DIM_OVERWORLD);
     Range rng;
-    int ix, iz;
-    int64_t best = (int64_t) r * r + 1;
-    int found = 0;
+    int ix, iz, n = 0;
 
     if (!g_bcache)
         return 0;
@@ -417,40 +520,36 @@ static int sf_find_biome(const Crit *c, int cx, int cz, int r, Pos *outpos)
     {
         for (ix = 0; ix < g_bside; ix++)
         {
-            int64_t dx, dz, d2;
+            Pos p;
             if (g_bcache[iz * g_bside + ix] != c->variant)
                 continue;
-            dx = (int64_t) (rng.x + ix) * g_bscale - cx;
-            dz = (int64_t) (rng.z + iz) * g_bscale - cz;
-            d2 = dx * dx + dz * dz;
-            if (d2 < best)
-            {
-                best = d2;
-                outpos->x = (int) ((int64_t) (rng.x + ix) * g_bscale);
-                outpos->z = (int) ((int64_t) (rng.z + iz) * g_bscale);
-                found = 1;
-            }
+            p.x = (int) ((int64_t) (rng.x + ix) * g_bscale);
+            p.z = (int) ((int64_t) (rng.z + iz) * g_bscale);
+            if (!sf_within(p.x, p.z, cx, cz, r))
+                continue;
+            sf_insert(out, biomes, &n, max, p, c->variant, cx, cz);
         }
     }
-    return found;
+    return n;
 }
 
-/* Confirms one criterion. On success writes the winning position (and the
- * biome id reported by cubiomes) into out. */
-static int sf_confirm(const Crit *c, uint64_t seed, int cx, int cz, int r,
-                      Pos *outpos, int *outbiome)
+/*
+ * Collects every position satisfying one criterion within `r` of (cx, cz),
+ * nearest first, capped at `max`.
+ *
+ * `max` is 1 for a plain AND search, where the first hit is enough. It is
+ * larger once proximity rules are in play, because then the solver has to be
+ * able to try a different instance of the same structure.
+ */
+static int sf_collect(const Crit *c, uint64_t seed, int cx, int cz, int r,
+                      Pos *out, int *biomes, int max)
 {
     Pos hits[SF_MAX_HITS];
-    int n, i;
+    int n, i, found = 0;
     Generator *g = sf_gen(c->dim);
 
     if (c->kind == SF_KIND_BIOME)
-    {
-        if (!sf_find_biome(c, cx, cz, r, outpos))
-            return 0;
-        *outbiome = c->variant;
-        return 1;
-    }
+        return sf_collect_biome(c, cx, cz, r, out, biomes, max);
 
     if (c->type == SF_STRONGHOLD)
     {
@@ -459,13 +558,21 @@ static int sf_confirm(const Crit *c, uint64_t seed, int cx, int cz, int r,
         initFirstStronghold(&sh, g_mc, seed);
         for (k = 0; k < 256; k++)
         {
+            /* nextStronghold() bumps ringnum only once a ring is exhausted,
+             * so the ring of the stronghold it is about to return has to be
+             * read before the call, not after. */
+            int ring = sh.ringnum + 1;
             if (!nextStronghold(&sh, g))
                 break;
-            if (sf_within(sh.pos.x, sh.pos.z, cx, cz, r))
+            /* Subtype on a stronghold selects its ring, counted from 1. */
+            if (c->subtype == SF_ANY || ring == c->subtype)
             {
-                *outpos = sh.pos;
-                *outbiome = -1;
-                return 1;
+                if (sf_within(sh.pos.x, sh.pos.z, cx, cz, r))
+                {
+                    sf_insert(out, biomes, &found, max, sh.pos, -1, cx, cz);
+                    if (found >= max && max == 1)
+                        return found;
+                }
             }
             {
                 int64_t dx = sh.pos.x - (int64_t) cx;
@@ -474,7 +581,7 @@ static int sf_confirm(const Crit *c, uint64_t seed, int cx, int cz, int r,
                     break;
             }
         }
-        return 0;
+        return found;
     }
 
     n = sf_candidates(c, seed, cx, cz, r, hits);
@@ -499,9 +606,69 @@ static int sf_confirm(const Crit *c, uint64_t seed, int cx, int cz, int r,
         if (!sf_traits_ok(c, seed, hits[i], c->type == Village ? viable : -1))
             continue;
 
-        *outpos = hits[i];
-        *outbiome = (c->type == Village) ? viable : -1;
+        sf_insert(out, biomes, &found, max, hits[i],
+                  c->type == Village ? viable : -1, cx, cz);
+        if (found >= max && max == 1)
+            return found;
+    }
+    return found;
+}
+
+/* Convenience wrapper: does at least one position satisfy this criterion? */
+static int sf_confirm(const Crit *c, uint64_t seed, int cx, int cz, int r,
+                      Pos *outpos, int *outbiome)
+{
+    Pos one;
+    int biome = -1;
+    if (sf_collect(c, seed, cx, cz, r, &one, &biome, 1) == 0)
+        return 0;
+    *outpos = one;
+    *outbiome = biome;
+    return 1;
+}
+
+/* ------------------------------------------------------------------ */
+/* proximity rules                                                     */
+/* ------------------------------------------------------------------ */
+
+/* Are the choices made so far consistent with every fully-assigned rule? */
+static int sf_pairs_ok(int upto)
+{
+    int i;
+    for (i = 0; i < g_npair; i++)
+    {
+        const Pair *pr = &g_pair[i];
+        int64_t dx, dz;
+        if (pr->a > upto || pr->b > upto)
+            continue; /* not decided yet */
+        dx = (int64_t) g_chosen[pr->a].x - g_chosen[pr->b].x;
+        dz = (int64_t) g_chosen[pr->a].z - g_chosen[pr->b].z;
+        if (dx * dx + dz * dz > (int64_t) pr->maxDist * pr->maxDist)
+            return 0;
+    }
+    return 1;
+}
+
+/*
+ * Picks one position per criterion such that every proximity rule holds.
+ *
+ * Plain backtracking. The candidate lists are short (capped at SF_MAX_CAND,
+ * nearest first) and a rule prunes as soon as both of its criteria are
+ * assigned, so this stays cheap in practice.
+ */
+static int sf_solve(int k)
+{
+    int i;
+    if (k >= g_ncrit)
         return 1;
+    for (i = 0; i < g_ncand[k]; i++)
+    {
+        g_chosen[k] = g_cand[k][i];
+        g_chosenbiome[k] = g_candbiome[k][i];
+        if (!sf_pairs_ok(k))
+            continue;
+        if (sf_solve(k + 1))
+            return 1;
     }
     return 0;
 }
@@ -526,7 +693,6 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
 {
     int found = 0;
     int i, k;
-    int r1 = g_radius + (g_target == SF_TARGET_ORIGIN ? 0 : SF_SPAWN_MARGIN);
     Pos hits[SF_MAX_HITS];
 
     g_scanned = 0;
@@ -547,7 +713,8 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
         for (k = 0; k < g_ncrit; k++)
         {
             const Crit *c = &g_crit[k];
-            int ccx = cx, ccz = cz, rr = r1;
+            int ccx = cx, ccz = cz;
+            int rr = c->radius + (g_target == SF_TARGET_ORIGIN ? 0 : SF_SPAWN_MARGIN);
             if (c->kind != SF_KIND_STRUCTURE)
                 continue; /* biome criteria have no cheap positional stage */
             if (c->dim == DIM_NETHER)
@@ -591,7 +758,8 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
                 Pos p; int biome;
                 if (g_crit[k].kind != SF_KIND_STRUCTURE)
                     continue;
-                if (!sf_confirm(&g_crit[k], seed, 0, 0, r1, &p, &biome))
+                if (!sf_confirm(&g_crit[k], seed, 0, 0,
+                                g_crit[k].radius + SF_SPAWN_MARGIN, &p, &biome))
                 {
                     pass = 0;
                     break;
@@ -617,29 +785,55 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
             cx = 0; cz = 0;
         }
 
-        /* 2c: exact distance filtering around the real target point. */
-        for (k = 0; k < g_ncrit; k++)
+        /* 2c: exact distance filtering around the real target point, each
+         * criterion against its own radius. With no proximity rules one hit
+         * per criterion is enough; with rules we need several candidates so
+         * the solver can try a different instance of the same structure. */
         {
-            const Crit *c = &g_crit[k];
-            int ccx = cx, ccz = cz;
-            Pos p; int biome;
-            if (c->dim == DIM_NETHER)
+            int want = (g_npair > 0) ? SF_MAX_CAND : 1;
+            for (k = 0; k < g_ncrit; k++)
             {
-                ccx = cx / 8;
-                ccz = cz / 8;
+                const Crit *c = &g_crit[k];
+                int ccx = cx, ccz = cz;
+                if (c->dim == DIM_NETHER)
+                {
+                    ccx = cx / 8;
+                    ccz = cz / 8;
+                }
+                g_ncand[k] = sf_collect(c, seed, ccx, ccz, c->radius,
+                                        g_cand[k], g_candbiome[k], want);
+                if (g_ncand[k] == 0)
+                {
+                    pass = 0;
+                    break;
+                }
             }
-            if (!sf_confirm(c, seed, ccx, ccz, g_radius, &p, &biome))
+            if (!pass)
+                continue;
+
+            if (g_npair > 0)
             {
-                pass = 0;
-                break;
+                if (!sf_solve(0))
+                    continue;
             }
-            outData[(found * SF_MAX_CRIT + c->slot) * 4 + 0] = p.x;
-            outData[(found * SF_MAX_CRIT + c->slot) * 4 + 1] = p.z;
-            outData[(found * SF_MAX_CRIT + c->slot) * 4 + 2] = biome;
-            outData[(found * SF_MAX_CRIT + c->slot) * 4 + 3] = c->dim;
+            else
+            {
+                for (k = 0; k < g_ncrit; k++)
+                {
+                    g_chosen[k] = g_cand[k][0];
+                    g_chosenbiome[k] = g_candbiome[k][0];
+                }
+            }
+
+            for (k = 0; k < g_ncrit; k++)
+            {
+                const Crit *c = &g_crit[k];
+                outData[(found * SF_MAX_CRIT + c->slot) * 4 + 0] = g_chosen[k].x;
+                outData[(found * SF_MAX_CRIT + c->slot) * 4 + 1] = g_chosen[k].z;
+                outData[(found * SF_MAX_CRIT + c->slot) * 4 + 2] = g_chosenbiome[k];
+                outData[(found * SF_MAX_CRIT + c->slot) * 4 + 3] = c->dim;
+            }
         }
-        if (!pass)
-            continue;
 
         outSeeds[found] = seed;
         outSpawn[found * 2 + 0] = cx;
@@ -675,6 +869,12 @@ int sf_spawn(uint64_t seed, int mc, int exact, int32_t *out)
 
 EMSCRIPTEN_KEEPALIVE
 int sf_crit_ints(void) { return SF_CRIT_INTS; }
+
+EMSCRIPTEN_KEEPALIVE
+int sf_pair_ints(void) { return SF_PAIR_INTS; }
+
+EMSCRIPTEN_KEEPALIVE
+int sf_max_pairs(void) { return SF_MAX_PAIRS; }
 
 /* Whether a biome exists and generates in the overworld of a given version. */
 EMSCRIPTEN_KEEPALIVE

@@ -28,54 +28,109 @@ function hitLabel(hit: MatchHit): string {
   return structureName(hit.id);
 }
 
-function drawMap(canvas: HTMLCanvasElement, m: Match, radius: number): void {
-  const size = 360;
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+const MAP_SIZE = 300; // CSS pixels; the canvas is drawn at 2x for sharpness
 
-  const cx = size / 2;
-  const scale = size / 2 / (radius * 1.15);
+interface Plotted {
+  hit: MatchHit;
+  px: number;
+  pz: number;
+}
+
+/**
+ * Draws the preview map: the radius ring, compass labels, the target point and
+ * every hit. Returns the on-screen positions so the caller can hit-test hovers.
+ */
+function drawMap(canvas: HTMLCanvasElement, m: Match, radii: readonly number[]): Plotted[] {
+  const radius = Math.max(...radii);
+  const dpr = 2;
+  const size = MAP_SIZE;
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  canvas.style.width = `${size}px`;
+  canvas.style.height = `${size}px`;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return [];
+  ctx.scale(dpr, dpr);
+
+  const c = size / 2;
+  // Leave a margin so the compass labels are not clipped by the edge.
+  const margin = 18;
+  const scale = (size / 2 - margin) / radius;
 
   ctx.fillStyle = '#0a0e13';
   ctx.fillRect(0, 0, size, size);
-
-  // radius ring
-  ctx.strokeStyle = '#26303d';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(cx, cx, radius * scale, 0, Math.PI * 2);
-  ctx.stroke();
 
   // axes
   ctx.strokeStyle = '#1a2029';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(cx, 0);
-  ctx.lineTo(cx, size);
-  ctx.moveTo(0, cx);
-  ctx.lineTo(size, cx);
+  ctx.moveTo(c, margin * 0.5);
+  ctx.lineTo(c, size - margin * 0.5);
+  ctx.moveTo(margin * 0.5, c);
+  ctx.lineTo(size - margin * 0.5, c);
   ctx.stroke();
+
+  // One ring per distinct criterion radius, so a search with different
+  // per-structure distances does not look like it shares a single limit.
+  const rings = [...new Set(radii)].sort((a, b) => a - b);
+  for (const r of rings) {
+    const outer = r === radius;
+    ctx.strokeStyle = outer ? '#2f3d4d' : '#1e2732';
+    ctx.lineWidth = outer ? 1.5 : 1;
+    if (!outer) ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    ctx.arc(c, c, r * scale, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // compass labels. In Minecraft, north is -Z and east is +X, which is the
+  // same orientation this map is drawn in.
+  ctx.fillStyle = '#6f7c8b';
+  ctx.font = '600 11px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('N', c, 8);
+  ctx.fillText('S', c, size - 8);
+  ctx.fillText('W', 8, c);
+  ctx.fillText('E', size - 8, c);
+
+  // Label each ring on the north axis.
+  ctx.fillStyle = '#4b5765';
+  ctx.font = '10px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  for (const r of rings) {
+    ctx.fillText(`${r}`, c + 4, c - r * scale - 7);
+  }
 
   // target point
   ctx.fillStyle = '#e6edf3';
   ctx.beginPath();
-  ctx.arc(cx, cx, 4, 0, Math.PI * 2);
+  ctx.arc(c, c, 3.5, 0, Math.PI * 2);
   ctx.fill();
 
+  const plotted: Plotted[] = [];
   for (const hit of m.hits) {
     const t = targetFor(hit, m);
-    const px = cx + (hit.x - t.x) * scale;
-    const pz = cx + (hit.z - t.z) * scale;
-    ctx.fillStyle = hit.kind === KIND.biome ? BIOME_COLOR : (DIM_COLORS[hit.dim] ?? '#5ac36a');
+    const px = c + (hit.x - t.x) * scale;
+    const pz = c + (hit.z - t.z) * scale;
+    const color = hit.kind === KIND.biome ? BIOME_COLOR : (DIM_COLORS[hit.dim] ?? '#5ac36a');
+
+    ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.arc(px, pz, 6, 0, Math.PI * 2);
+    ctx.arc(px, pz, 5, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = '#0a0e13';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    plotted.push({ hit, px, pz });
   }
+  return plotted;
 }
 
-export function renderResult(m: Match, radius: number): HTMLElement {
+export function renderResult(m: Match, radii: readonly number[]): HTMLElement {
   const card = document.createElement('article');
   card.className = 'result';
 
@@ -129,10 +184,39 @@ export function renderResult(m: Match, radius: number): HTMLElement {
   }
   left.append(list);
 
+  const mapWrap = document.createElement('div');
+  mapWrap.className = 'map-wrap';
+
   const canvas = document.createElement('canvas');
   canvas.className = 'map';
-  drawMap(canvas, m, radius);
+  const plotted = drawMap(canvas, m, radii);
 
-  card.append(left, canvas);
+  const tip = document.createElement('div');
+  tip.className = 'map-tip';
+  tip.hidden = true;
+
+  canvas.addEventListener('mousemove', (ev) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = ev.clientX - rect.left;
+    const my = ev.clientY - rect.top;
+    const near = plotted.find((p) => Math.hypot(p.px - mx, p.pz - my) <= 9);
+    if (!near) {
+      tip.hidden = true;
+      return;
+    }
+    const t = targetFor(near.hit, m);
+    tip.textContent = `${hitLabel(near.hit)} - ${near.hit.x}, ${near.hit.z} (${distance(
+      near.hit.x, near.hit.z, t.x, t.z,
+    )} blocks)`;
+    tip.hidden = false;
+    tip.style.left = `${near.px}px`;
+    tip.style.top = `${near.pz - 12}px`;
+  });
+  canvas.addEventListener('mouseleave', () => {
+    tip.hidden = true;
+  });
+
+  mapWrap.append(canvas, tip);
+  card.append(left, mapWrap);
   return card;
 }
