@@ -4,3 +4,4 @@ src/wasm/
 *.log
 .DS_Store
 .emscripten_cache/
+package-lock.json.bak

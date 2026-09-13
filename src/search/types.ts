@@ -1,0 +1,68 @@
+/** Shared types for the search engine and the worker protocol. */
+
+/** Target point that distances are measured from. */
+export const TARGET = {
+  origin: 0,
+  estimatedSpawn: 1,
+  exactSpawn: 2,
+} as const;
+
+export type TargetMode = (typeof TARGET)[keyof typeof TARGET];
+
+/** One structure requirement. All criteria must be satisfied (AND). */
+export interface Criterion {
+  /** Structure id (see src/data/structures.ts). */
+  structure: number;
+  /** Variant group key -> selected option value (`null` = Any). */
+  variants: Record<string, string | null>;
+}
+
+export interface SearchConfig {
+  mc: number;
+  radius: number;
+  target: TargetMode;
+  criteria: Criterion[];
+  /** First seed to test. Only the low 48 bits affect structure placement. */
+  startSeed: bigint;
+  /** Stop after this many seeds; 0 means "keep going until stopped". */
+  seedLimit: bigint;
+  /** Stop after this many matches; 0 means unlimited. */
+  matchLimit: number;
+}
+
+export interface MatchHit {
+  structure: number;
+  x: number;
+  z: number;
+  /** Village biome id, or -1 when the structure has no biome variant. */
+  biome: number;
+  dim: number;
+}
+
+export interface Match {
+  seed: bigint;
+  spawnX: number;
+  spawnZ: number;
+  hits: MatchHit[];
+}
+
+export type WorkerIn =
+  | { type: 'start'; config: SerializableConfig; lane: number; lanes: number }
+  | { type: 'stop' };
+
+export type WorkerOut =
+  | { type: 'ready' }
+  | { type: 'progress'; scanned: number; stage2: number }
+  | { type: 'matches'; matches: SerializableMatch[]; scanned: number; stage2: number }
+  | { type: 'done'; scanned: number }
+  | { type: 'error'; message: string };
+
+/** `SearchConfig` with bigints kept as bigints (structured clone handles them). */
+export type SerializableConfig = SearchConfig;
+
+export interface SerializableMatch {
+  seed: bigint;
+  spawnX: number;
+  spawnZ: number;
+  hits: MatchHit[];
+}

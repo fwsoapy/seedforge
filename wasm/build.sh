@@ -38,7 +38,7 @@ emcc "${SRC[@]}" \
   -DNDEBUG \
   -sMODULARIZE=1 \
   -sEXPORT_ES6=1 \
-  -sENVIRONMENT=web,worker,node \
+  -sENVIRONMENT=web,worker \
   -sALLOW_MEMORY_GROWTH=1 \
   -sINITIAL_MEMORY=33554432 \
   -sEXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \

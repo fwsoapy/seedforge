@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SeedForge - Minecraft seed finder</title>
+    <meta
+      name="description"
+      content="Find Minecraft Java Edition seeds with the structures you want near spawn. Runs entirely in your browser, powered by Cubiomes compiled to WebAssembly."
+    />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./ui/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>SeedForge</h1>
+          <p class="tagline">Minecraft seeds with the structures you want, near spawn.</p>
+        </div>
+      </div>
+      <a class="ghost-link" href="https://github.com/fwsoapy/seedforge" target="_blank" rel="noreferrer noopener">GitHub</a>
+    </header>
+
+    <main id="app">
+      <section class="panel" id="setup">
+        <div class="row">
+          <label class="field">
+            <span>Minecraft version</span>
+            <select id="version"></select>
+          </label>
+
+          <label class="field">
+            <span>Max distance from spawn</span>
+            <span class="with-unit">
+              <input id="radius" type="number" min="16" max="100000" step="16" value="500" />
+              <span class="unit">blocks</span>
+            </span>
+          </label>
+
+          <label class="field">
+            <span>Measure from</span>
+            <select id="target">
+              <option value="0">World origin (0, 0) - fastest</option>
+              <option value="1" selected>Estimated world spawn</option>
+              <option value="2">Exact world spawn - slowest</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="structures">
+          <div class="structures-head">
+            <h2>Structures</h2>
+            <p class="hint">Every structure you tick must have at least one instance inside the radius.</p>
+          </div>
+          <div id="structure-list" class="structure-list"></div>
+        </div>
+
+        <details class="advanced">
+          <summary>Advanced</summary>
+          <div class="row">
+            <label class="field">
+              <span>Start seed</span>
+              <input id="start-seed" type="text" inputmode="numeric" placeholder="random" />
+            </label>
+            <label class="field">
+              <span>Stop after</span>
+              <span class="with-unit">
+                <input id="match-limit" type="number" min="1" max="500" step="1" value="20" />
+                <span class="unit">matches</span>
+              </span>
+            </label>
+            <label class="field">
+              <span>Worker threads</span>
+              <input id="threads" type="number" min="1" max="16" step="1" />
+            </label>
+          </div>
+        </details>
+
+        <div class="actions">
+          <button id="search" class="primary" type="button">Search seeds</button>
+          <button id="stop" class="secondary" type="button" disabled>Stop</button>
+          <button id="clear" class="ghost" type="button">Clear results</button>
+        </div>
+
+        <p id="error" class="error" hidden></p>
+      </section>
+
+      <section class="panel" id="progress-panel" hidden>
+        <div class="stats">
+          <div><strong id="stat-scanned">0</strong><span>seeds scanned</span></div>
+          <div><strong id="stat-matches">0</strong><span>matches</span></div>
+          <div><strong id="stat-rate">0</strong><span>seeds/sec</span></div>
+          <div><strong id="stat-threads">0</strong><span>threads</span></div>
+        </div>
+        <div class="bar"><div id="bar-fill"></div></div>
+      </section>
+
+      <section class="panel" id="results-panel">
+        <h2>Results</h2>
+        <p id="empty" class="hint">No results yet. Pick some structures and hit search.</p>
+        <div id="results"></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <details class="caveats">
+        <summary>Accuracy &amp; limitations</summary>
+        <ul>
+          <li>
+            Structure placement is recomputed from Minecraft's own deterministic world-generation
+            math. Nothing is looked up in a database, and nothing you type leaves your browser.
+          </li>
+          <li>
+            In 1.18 and later, a few structures (desert pyramids, jungle temples, woodland mansions)
+            also depend on surface height. Cubiomes approximates that check, so rare false positives
+            are possible.
+          </li>
+          <li>
+            "Estimated world spawn" can differ from the real in-game spawn by a few dozen blocks
+            because the game's final spawn search depends on block-level terrain. Use "exact world
+            spawn" for accuracy at a large speed cost.
+          </li>
+          <li>
+            Nether structure distances are measured in Nether coordinates from the Nether-side
+            equivalent of your target point (x/8, z/8).
+          </li>
+          <li>
+            Village size (small / medium / large) is not exposed by Cubiomes and is deliberately not
+            offered as a filter. Village biome type and zombie villages are exact.
+          </li>
+          <li>Always verify a seed in-game before committing a world to it.</li>
+        </ul>
+      </details>
+      <p>
+        Unofficial fan tool. Not affiliated with Mojang or Microsoft. Built on
+        <a href="https://github.com/Cubitect/cubiomes" target="_blank" rel="noreferrer noopener">Cubiomes</a>
+        by Cubitect. MIT licensed.
+      </p>
+    </footer>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
