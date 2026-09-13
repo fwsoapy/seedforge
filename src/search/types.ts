@@ -9,10 +9,14 @@ export const TARGET = {
 
 export type TargetMode = (typeof TARGET)[keyof typeof TARGET];
 
-/** One structure requirement. All criteria must be satisfied (AND). */
+export const KIND = { structure: 0, biome: 1 } as const;
+export type CriterionKind = (typeof KIND)[keyof typeof KIND];
+
+/** One requirement. All criteria must be satisfied (AND). */
 export interface Criterion {
-  /** Structure id (see src/data/structures.ts). */
-  structure: number;
+  kind: CriterionKind;
+  /** Structure id for `kind: structure`, biome id for `kind: biome`. */
+  id: number;
   /** Variant group key -> selected option value (`null` = Any). */
   variants: Record<string, string | null>;
 }
@@ -31,7 +35,8 @@ export interface SearchConfig {
 }
 
 export interface MatchHit {
-  structure: number;
+  kind: CriterionKind;
+  id: number;
   x: number;
   z: number;
   /** Village biome id, or -1 when the structure has no biome variant. */

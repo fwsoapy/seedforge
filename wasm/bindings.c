@@ -52,17 +52,28 @@
 #define SF_TRAIT_CRACKED     (1u << 5)  /* geode with a crack */
 
 /* Number of int32 values per criterion in the sf_configure() input array. */
-#define SF_CRIT_INTS 6
+#define SF_CRIT_INTS 8
+
+/* Criterion kinds. */
+#define SF_KIND_STRUCTURE 0
+#define SF_KIND_BIOME     1
+
+/* Biome criteria sample a scaled grid. The scale is chosen so the grid stays
+ * within this many cells; a radius too large for even 1:256 is rejected. */
+#define SF_BIOME_CELL_BUDGET 262144
 
 typedef struct
 {
+    int kind;       /* SF_KIND_* */
     int type;       /* StructureType or SF_STRONGHOLD */
-    int variant;    /* biome id constraint, or -1 for "any" */
+    int variant;    /* village biome constraint, or the wanted biome id */
     uint32_t treq;  /* required trait bits */
     uint32_t tmask; /* which trait bits are constrained */
     int areaMin;    /* starting-piece footprint bounds, 0 = unconstrained */
     int areaMax;
+    int sampleY;    /* biome criteria: block height to sample at */
     int dim;        /* DIM_OVERWORLD / DIM_NETHER / DIM_END */
+    int slot;       /* index in the caller's criteria array */
     StructureConfig sconf;
     int hasconf;
 } Crit;
@@ -78,6 +89,11 @@ static int  g_target = SF_TARGET_ORIGIN;
 static int  g_ncrit = 0;
 static Crit g_crit[SF_MAX_CRIT];
 static int  g_needow = 0;       /* overworld generator needed for the target */
+static int *g_bcache = NULL;    /* scratch for biome criteria */
+static int  g_bcells = 0;
+static int  g_bscale = 16;
+static int  g_bside = 0;        /* grid width/height in cells */
+static int  g_nbiome = 0;       /* how many criteria are biome criteria */
 
 /* Last-run statistics, read back through sf_stat_*(). */
 static uint64_t g_scanned = 0;
@@ -148,7 +164,8 @@ int sf_mc_newest(void)
 EMSCRIPTEN_KEEPALIVE
 int sf_configure(int mc, int radius, int target, const int32_t *crit, int ncrit)
 {
-    int i, d;
+    int i, d, pass;
+    int n = 0;
 
     if (ncrit < 0 || ncrit > SF_MAX_CRIT)
         return -1;
@@ -159,39 +176,66 @@ int sf_configure(int mc, int radius, int target, const int32_t *crit, int ncrit)
     g_radius = radius;
     g_target = target;
     g_ncrit = ncrit;
+    g_nbiome = 0;
     g_needow = (target != SF_TARGET_ORIGIN);
 
     for (d = 0; d < 3; d++)
         g_genready[d] = 0;
     g_ensnready = 0;
 
-    for (i = 0; i < ncrit; i++)
+    /* Structure criteria are loaded first so that stage 2 always rejects on
+     * the cheaper checks before it touches the biome grid. `slot` keeps the
+     * caller's original ordering for the output buffer. */
+    for (pass = 0; pass < 2; pass++)
     {
-        Crit *c = &g_crit[i];
-        c->type    = crit[i * SF_CRIT_INTS + 0];
-        c->variant = crit[i * SF_CRIT_INTS + 1];
-        c->treq    = (uint32_t) crit[i * SF_CRIT_INTS + 2];
-        c->tmask   = (uint32_t) crit[i * SF_CRIT_INTS + 3];
-        c->areaMin = crit[i * SF_CRIT_INTS + 4];
-        c->areaMax = crit[i * SF_CRIT_INTS + 5];
-        c->dim     = sf_dim_of(c->type);
-        c->hasconf = 0;
-
-        if (c->type == SF_STRONGHOLD)
+        for (i = 0; i < ncrit; i++)
         {
-            if (mc < MC_1_0)
-                return -3;
-        }
-        else
-        {
-            if (!getStructureConfig(c->type, mc, &c->sconf))
-                return -3;
-            c->hasconf = 1;
-        }
+            const int32_t *in = crit + i * SF_CRIT_INTS;
+            int kind = in[0];
+            Crit *c;
 
-        if (c->dim == DIM_OVERWORLD)
-            g_needow = 1;
-        g_genready[c->dim + 1] = 1;
+            if (kind != (pass == 0 ? SF_KIND_STRUCTURE : SF_KIND_BIOME))
+                continue;
+
+            c = &g_crit[n++];
+            c->kind    = kind;
+            c->type    = in[1];
+            c->variant = in[2];
+            c->treq    = (uint32_t) in[3];
+            c->tmask   = (uint32_t) in[4];
+            c->areaMin = in[5];
+            c->areaMax = in[6];
+            c->sampleY = in[7];
+            c->slot    = i;
+            c->hasconf = 0;
+
+            if (kind == SF_KIND_BIOME)
+            {
+                c->dim = DIM_OVERWORLD;
+                if (!biomeExists(mc, c->variant) || !isOverworld(mc, c->variant))
+                    return -4;
+                g_nbiome++;
+            }
+            else
+            {
+                c->dim = sf_dim_of(c->type);
+                if (c->type == SF_STRONGHOLD)
+                {
+                    if (mc < MC_1_0)
+                        return -3;
+                }
+                else
+                {
+                    if (!getStructureConfig(c->type, mc, &c->sconf))
+                        return -3;
+                    c->hasconf = 1;
+                }
+            }
+
+            if (c->dim == DIM_OVERWORLD)
+                g_needow = 1;
+            g_genready[c->dim + 1] = 1;
+        }
     }
 
     if (g_needow)
@@ -200,6 +244,30 @@ int sf_configure(int mc, int radius, int target, const int32_t *crit, int ncrit)
     for (d = 0; d < 3; d++)
         if (g_genready[d])
             setupGenerator(&g_gen[d], mc, 0);
+
+    /* Size the biome sampling grid, coarsening the scale until it fits. */
+    free(g_bcache);
+    g_bcache = NULL;
+    g_bcells = 0;
+    if (g_nbiome > 0)
+    {
+        int64_t side;
+        g_bscale = 16;
+        for (;;)
+        {
+            side = (int64_t) (2 * radius) / g_bscale + 2;
+            if (side * side <= SF_BIOME_CELL_BUDGET)
+                break;
+            if (g_bscale >= 256)
+                return -5; /* radius too large for a biome search */
+            g_bscale *= 4;
+        }
+        g_bside = (int) side;
+        g_bcells = g_bside * g_bside;
+        g_bcache = (int *) malloc((size_t) g_bcells * sizeof(int));
+        if (!g_bcache)
+            return -6;
+    }
 
     g_scanned = 0;
     g_stage2 = 0;
@@ -314,6 +382,59 @@ static int sf_traits_ok(const Crit *c, uint64_t seed, Pos p, int biome)
     return (t & c->tmask) == (c->treq & c->tmask);
 }
 
+/*
+ * Looks for a biome within radius of (cx, cz) by generating one scaled grid
+ * around the target and scanning it for the wanted id.
+ *
+ * The grid is sampled at 1:16 where it fits, coarsening to 1:64 or 1:256 for
+ * large radii. Coarse sampling can step over a patch smaller than the sample
+ * spacing, so this can miss a small biome patch - it never invents one.
+ */
+static int sf_find_biome(const Crit *c, int cx, int cz, int r, Pos *outpos)
+{
+    Generator *g = sf_gen(DIM_OVERWORLD);
+    Range rng;
+    int ix, iz;
+    int64_t best = (int64_t) r * r + 1;
+    int found = 0;
+
+    if (!g_bcache)
+        return 0;
+
+    rng.scale = g_bscale;
+    rng.x = (cx - r) / g_bscale;
+    rng.z = (cz - r) / g_bscale;
+    rng.sx = g_bside;
+    rng.sz = g_bside;
+    /* Vertical scaling is always 1:4 for the non-voronoi scales used here. */
+    rng.y = c->sampleY >> 2;
+    rng.sy = 1;
+
+    if (genBiomes(g, g_bcache, rng) != 0)
+        return 0;
+
+    for (iz = 0; iz < g_bside; iz++)
+    {
+        for (ix = 0; ix < g_bside; ix++)
+        {
+            int64_t dx, dz, d2;
+            if (g_bcache[iz * g_bside + ix] != c->variant)
+                continue;
+            dx = (int64_t) (rng.x + ix) * g_bscale - cx;
+            dz = (int64_t) (rng.z + iz) * g_bscale - cz;
+            d2 = dx * dx + dz * dz;
+            if (d2 < best)
+            {
+                best = d2;
+                outpos->x = (int) ((int64_t) (rng.x + ix) * g_bscale);
+                outpos->z = (int) ((int64_t) (rng.z + iz) * g_bscale);
+                found = 1;
+            }
+        }
+    }
+    return found;
+}
+
 /* Confirms one criterion. On success writes the winning position (and the
  * biome id reported by cubiomes) into out. */
 static int sf_confirm(const Crit *c, uint64_t seed, int cx, int cz, int r,
@@ -322,6 +443,14 @@ static int sf_confirm(const Crit *c, uint64_t seed, int cx, int cz, int r,
     Pos hits[SF_MAX_HITS];
     int n, i;
     Generator *g = sf_gen(c->dim);
+
+    if (c->kind == SF_KIND_BIOME)
+    {
+        if (!sf_find_biome(c, cx, cz, r, outpos))
+            return 0;
+        *outbiome = c->variant;
+        return 1;
+    }
 
     if (c->type == SF_STRONGHOLD)
     {
@@ -419,6 +548,8 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
         {
             const Crit *c = &g_crit[k];
             int ccx = cx, ccz = cz, rr = r1;
+            if (c->kind != SF_KIND_STRUCTURE)
+                continue; /* biome criteria have no cheap positional stage */
             if (c->dim == DIM_NETHER)
             {   /* nether structures are filtered in nether coordinates */
                 ccx = cx / 8;
@@ -458,6 +589,8 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
             for (k = 0; k < g_ncrit; k++)
             {
                 Pos p; int biome;
+                if (g_crit[k].kind != SF_KIND_STRUCTURE)
+                    continue;
                 if (!sf_confirm(&g_crit[k], seed, 0, 0, r1, &p, &biome))
                 {
                     pass = 0;
@@ -500,10 +633,10 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
                 pass = 0;
                 break;
             }
-            outData[(found * SF_MAX_CRIT + k) * 4 + 0] = p.x;
-            outData[(found * SF_MAX_CRIT + k) * 4 + 1] = p.z;
-            outData[(found * SF_MAX_CRIT + k) * 4 + 2] = biome;
-            outData[(found * SF_MAX_CRIT + k) * 4 + 3] = c->dim;
+            outData[(found * SF_MAX_CRIT + c->slot) * 4 + 0] = p.x;
+            outData[(found * SF_MAX_CRIT + c->slot) * 4 + 1] = p.z;
+            outData[(found * SF_MAX_CRIT + c->slot) * 4 + 2] = biome;
+            outData[(found * SF_MAX_CRIT + c->slot) * 4 + 3] = c->dim;
         }
         if (!pass)
             continue;
@@ -542,3 +675,10 @@ int sf_spawn(uint64_t seed, int mc, int exact, int32_t *out)
 
 EMSCRIPTEN_KEEPALIVE
 int sf_crit_ints(void) { return SF_CRIT_INTS; }
+
+/* Whether a biome exists and generates in the overworld of a given version. */
+EMSCRIPTEN_KEEPALIVE
+int sf_biome_supported(int biomeId, int mc)
+{
+    return biomeExists(mc, biomeId) && isOverworld(mc, biomeId);
+}

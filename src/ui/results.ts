@@ -1,15 +1,16 @@
 /** Result cards: seed, per-structure coordinates and distances, mini map. */
 
-import { biomeName } from '../data/biomes';
-import { structureById, structureName } from '../data/structures';
+import { biomeById, biomeName } from '../data/biomes';
+import { STRUCT, structureName } from '../data/structures';
 import { distance } from '../search/criteria';
-import type { Match, MatchHit } from '../search/types';
+import { KIND, type Match, type MatchHit } from '../search/types';
 
 const DIM_COLORS: Record<number, string> = {
   0: '#5ac36a',
   [-1]: '#e08a72',
   1: '#c9a4e8',
 };
+const BIOME_COLOR = '#63b3ed';
 
 function targetFor(hit: MatchHit, m: Match): { x: number; z: number } {
   // Nether structures are filtered against the Nether-side target point.
@@ -19,13 +20,12 @@ function targetFor(hit: MatchHit, m: Match): { x: number; z: number } {
 }
 
 function hitLabel(hit: MatchHit): string {
-  const name = structureName(hit.structure);
-  const def = structureById(hit.structure);
-  if (def?.id === 5 && hit.biome >= 0) {
+  if (hit.kind === KIND.biome) return biomeById(hit.id)?.name ?? `Biome #${hit.id}`;
+  if (hit.id === STRUCT.Village && hit.biome >= 0) {
     const b = biomeName(hit.biome);
     if (b) return `${b} village`;
   }
-  return name;
+  return structureName(hit.id);
 }
 
 function drawMap(canvas: HTMLCanvasElement, m: Match, radius: number): void {
@@ -68,7 +68,7 @@ function drawMap(canvas: HTMLCanvasElement, m: Match, radius: number): void {
     const t = targetFor(hit, m);
     const px = cx + (hit.x - t.x) * scale;
     const pz = cx + (hit.z - t.z) * scale;
-    ctx.fillStyle = DIM_COLORS[hit.dim] ?? '#5ac36a';
+    ctx.fillStyle = hit.kind === KIND.biome ? BIOME_COLOR : (DIM_COLORS[hit.dim] ?? '#5ac36a');
     ctx.beginPath();
     ctx.arc(px, pz, 6, 0, Math.PI * 2);
     ctx.fill();

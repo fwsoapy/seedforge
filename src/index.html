@@ -14,10 +14,10 @@
   <body>
     <header class="topbar">
       <div class="brand">
-        <span class="brand-mark" aria-hidden="true"></span>
+        <img class="brand-mark" src="./logo.svg" alt="" aria-hidden="true" width="36" height="36" />
         <div>
           <h1>SeedForge</h1>
-          <p class="tagline">Minecraft seeds with the structures you want, near spawn.</p>
+          <p class="tagline">Minecraft seeds with the structures and biomes you want, near spawn.</p>
         </div>
       </div>
       <a class="ghost-link" href="https://github.com/fwsoapy/seedforge" target="_blank" rel="noreferrer noopener">GitHub</a>
@@ -49,12 +49,28 @@
           </label>
         </div>
 
-        <div class="structures">
-          <div class="structures-head">
+        <div class="section">
+          <div class="section-head">
             <h2>Structures</h2>
-            <p class="hint">Every structure you tick must have at least one instance inside the radius.</p>
+            <p class="hint">Every criterion you tick must be satisfied inside the radius.</p>
           </div>
-          <div id="structure-list" class="structure-list"></div>
+          <div id="structure-list" class="chip-grid"></div>
+        </div>
+
+        <div class="section">
+          <div class="section-head">
+            <h2>Biomes</h2>
+            <p class="hint">Sampled on a grid around the target. Slower than structure searches.</p>
+          </div>
+          <div id="biome-list" class="chip-grid"></div>
+        </div>
+
+        <div class="section selected-section" hidden>
+          <div class="section-head">
+            <h2>Selected (<span id="selected-count">0</span>)</h2>
+            <p class="hint">Leave a dropdown on "Any" to not care about that detail.</p>
+          </div>
+          <div id="selected-list" class="selected-list"></div>
         </div>
 
         <details class="advanced">
@@ -94,7 +110,8 @@
           <div><strong id="stat-rate">0</strong><span>seeds/sec</span></div>
           <div><strong id="stat-threads">0</strong><span>threads</span></div>
         </div>
-        <div class="bar"><div id="bar-fill"></div></div>
+        <div class="bar" id="bar"><div id="bar-fill"></div></div>
+        <p id="status" class="status"></p>
         <p id="slow-hint" class="hint slow" hidden>
           Nothing yet after a couple of million seeds - this filter combination is rare. Try a
           larger radius, one fewer structure, or set a variant dropdown back to "Any".
@@ -135,6 +152,16 @@
             meeting-point piece, which is real generation data, but the jigsaw expansion that
             decides the final size is not modelled. Village biome type and zombie villages are
             exact.
+          </li>
+          <li>
+            Biome criteria are sampled on a grid (1:16 for normal radii, coarser for very large
+            ones), so a biome patch smaller than the sample spacing can be missed. A biome search
+            never reports one that is not there, and is slower than a structure search.
+          </li>
+          <li>
+            Ravines and individual caves cannot be searched. They are carved into terrain per
+            chunk rather than placed on a region grid, so Cubiomes does not model them. The lush
+            caves and dripstone caves biome criteria are the closest available thing.
           </li>
           <li>Always verify a seed in-game before committing a world to it.</li>
         </ul>

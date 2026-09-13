@@ -1,18 +1,21 @@
 /** Encodes UI criteria into the flat int32 layout that `sf_configure` reads. */
 
+import { biomeById } from '../data/biomes';
 import { structureById } from '../data/structures';
-import type { Criterion } from './types';
+import { KIND, type Criterion } from './types';
 
 /** Must match SF_CRIT_INTS in wasm/bindings.c. */
-export const CRIT_INTS = 6;
+export const CRIT_INTS = 8;
 
 export interface EncodedCriterion {
+  kind: number;
   type: number;
   biome: number;
   traitReq: number;
   traitMask: number;
   areaMin: number;
   areaMax: number;
+  sampleY: number;
 }
 
 /**
@@ -22,15 +25,24 @@ export interface EncodedCriterion {
  * "must not have".
  */
 export function encodeCriterion(c: Criterion): EncodedCriterion {
-  const def = structureById(c.structure);
   const out: EncodedCriterion = {
-    type: c.structure,
+    kind: c.kind,
+    type: c.id,
     biome: -1,
     traitReq: 0,
     traitMask: 0,
     areaMin: 0,
     areaMax: 0,
+    sampleY: 0,
   };
+
+  if (c.kind === KIND.biome) {
+    out.biome = c.id;
+    out.sampleY = biomeById(c.id)?.sampleY ?? 63;
+    return out;
+  }
+
+  const def = structureById(c.id);
   if (!def?.variants) return out;
 
   for (const group of def.variants) {
@@ -53,12 +65,14 @@ export function encodeCriteria(criteria: readonly Criterion[]): Int32Array {
   const buf = new Int32Array(criteria.length * CRIT_INTS);
   criteria.forEach((c, i) => {
     const e = encodeCriterion(c);
-    buf[i * CRIT_INTS + 0] = e.type;
-    buf[i * CRIT_INTS + 1] = e.biome;
-    buf[i * CRIT_INTS + 2] = e.traitReq;
-    buf[i * CRIT_INTS + 3] = e.traitMask;
-    buf[i * CRIT_INTS + 4] = e.areaMin;
-    buf[i * CRIT_INTS + 5] = e.areaMax;
+    buf[i * CRIT_INTS + 0] = e.kind;
+    buf[i * CRIT_INTS + 1] = e.type;
+    buf[i * CRIT_INTS + 2] = e.biome;
+    buf[i * CRIT_INTS + 3] = e.traitReq;
+    buf[i * CRIT_INTS + 4] = e.traitMask;
+    buf[i * CRIT_INTS + 5] = e.areaMin;
+    buf[i * CRIT_INTS + 6] = e.areaMax;
+    buf[i * CRIT_INTS + 7] = e.sampleY;
   });
   return buf;
 }

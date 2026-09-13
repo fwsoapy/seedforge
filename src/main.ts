@@ -9,8 +9,8 @@
 import { DEFAULT_VERSION, MC_VERSIONS } from './data/versions';
 import { SearchEngine } from './search/engine';
 import { SearchPool, suggestedWorkerCount } from './search/pool';
-import type { Match, SearchConfig, TargetMode } from './search/types';
-import { StructurePicker } from './ui/picker';
+import { KIND, type CriterionKind, type Match, type SearchConfig, type TargetMode } from './search/types';
+import { CriterionPicker } from './ui/picker';
 import { renderResult } from './ui/results';
 
 const $ = <T extends HTMLElement>(id: string): T => {
@@ -37,6 +37,8 @@ const statMatches = $<HTMLElement>('stat-matches');
 const statRate = $<HTMLElement>('stat-rate');
 const statThreads = $<HTMLElement>('stat-threads');
 const hintEl = $<HTMLElement>('slow-hint');
+const statusEl = $<HTMLElement>('status');
+const barEl = $<HTMLElement>('bar');
 
 const nf = new Intl.NumberFormat();
 
@@ -47,6 +49,10 @@ let lastRadius = 500;
 
 /** Seeds to scan with no match before suggesting the filters are too tight. */
 const SLOW_HINT_AFTER = 2_000_000;
+
+let lastScanned = 0;
+let lastMatches = 0;
+let stopRequested = false;
 
 function showError(message: string | null): void {
   errorEl.hidden = message === null;
@@ -71,12 +77,12 @@ function parseStartSeed(): bigint {
   }
 }
 
-function buildConfig(picker: StructurePicker): SearchConfig {
+function buildConfig(picker: CriterionPicker): SearchConfig {
   const radius = Number(radiusInput.value);
   if (!Number.isFinite(radius) || radius < 1) throw new Error('Enter a distance of at least 1 block.');
 
   const criteria = picker.criteria();
-  if (criteria.length === 0) throw new Error('Pick at least one structure to search for.');
+  if (criteria.length === 0) throw new Error('Pick at least one structure or biome to search for.');
 
   const matchLimit = Math.max(1, Number(matchLimitInput.value) || 20);
 
@@ -94,7 +100,29 @@ function buildConfig(picker: StructurePicker): SearchConfig {
 function setRunning(running: boolean): void {
   searchBtn.disabled = running;
   stopBtn.disabled = !running;
-  progressPanel.hidden = !running && resultsEl.childElementCount === 0;
+  searchBtn.textContent = running ? 'Searching...' : 'Search seeds';
+  // The animated bar is the "still working" signal - it has to stop when the
+  // search does, otherwise a finished search looks like a hung one.
+  barEl.hidden = !running;
+  if (running) progressPanel.hidden = false;
+}
+
+/** Final line under the stats: what the search actually ended up doing. */
+function reportDone(matches: number, scanned: number, limit: number, stopped: boolean): void {
+  const seeds = `${nf.format(scanned)} seed${scanned === 1 ? '' : 's'}`;
+  if (matches === 0) {
+    statusEl.textContent = stopped
+      ? `Stopped after ${seeds}. No matches yet - try a larger radius or fewer criteria.`
+      : `No matches in ${seeds}. Try a larger radius or fewer criteria.`;
+    statusEl.className = 'status warn';
+    return;
+  }
+  const found = `Found ${nf.format(matches)} seed${matches === 1 ? '' : 's'} in ${seeds}`;
+  statusEl.textContent =
+    !stopped && limit > 0 && matches >= limit
+      ? `${found}. That is the ${nf.format(limit)}-match limit - raise it under Advanced for more.`
+      : `${found}.`;
+  statusEl.className = 'status done';
 }
 
 function addMatches(matches: Match[]): void {
@@ -129,9 +157,15 @@ async function main(): Promise<void> {
   searchBtn.disabled = false;
   searchBtn.textContent = 'Search seeds';
 
-  const picker = new StructurePicker(
+  const picker = new CriterionPicker(
     $<HTMLElement>('structure-list'),
-    (id) => meta!.supports(id, Number(versionSel.value)),
+    $<HTMLElement>('biome-list'),
+    $<HTMLElement>('selected-list'),
+    $<HTMLElement>('selected-count'),
+    (kind: CriterionKind, id: number) => {
+      const mc = Number(versionSel.value);
+      return kind === KIND.biome ? meta!.supportsBiome(id, mc) : meta!.supports(id, mc);
+    },
     () => showError(null),
   );
   picker.render();
@@ -153,6 +187,11 @@ async function main(): Promise<void> {
     statScanned.textContent = '0';
     statMatches.textContent = '0';
     statRate.textContent = '0';
+    statusEl.textContent = '';
+    statusEl.className = 'status';
+    lastScanned = 0;
+    lastMatches = 0;
+    stopRequested = false;
 
     const lanes = Math.max(1, Math.min(16, Number(threadsInput.value) || suggestedWorkerCount()));
     statThreads.textContent = String(lanes);
@@ -161,13 +200,19 @@ async function main(): Promise<void> {
       {
         onMatch: addMatches,
         onProgress: (scanned, _stage2, matchCount) => {
+          lastScanned = scanned;
+          lastMatches = matchCount;
           statScanned.textContent = nf.format(scanned);
           statMatches.textContent = nf.format(matchCount);
           const secs = (performance.now() - startedAt) / 1000;
           statRate.textContent = secs > 0 ? nf.format(Math.round(scanned / secs)) : '0';
           hintEl.hidden = !(matchCount === 0 && scanned > SLOW_HINT_AFTER);
         },
-        onDone: () => setRunning(false),
+        onDone: () => {
+          setRunning(false);
+          hintEl.hidden = true;
+          reportDone(lastMatches, lastScanned, config.matchLimit, stopRequested);
+        },
         onError: (message) => showError(message),
       },
       lanes,
@@ -179,12 +224,17 @@ async function main(): Promise<void> {
     pool.start(config);
   });
 
-  stopBtn.addEventListener('click', () => pool?.stop());
+  stopBtn.addEventListener('click', () => {
+    stopRequested = true;
+    pool?.stop();
+  });
 
   clearBtn.addEventListener('click', () => {
     resultsEl.replaceChildren();
     emptyEl.hidden = false;
     hintEl.hidden = true;
+    statusEl.textContent = '';
+    progressPanel.hidden = true;
   });
 }
 

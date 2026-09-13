@@ -23,6 +23,7 @@ interface EmscriptenModule {
   _sf_mc_newest(): number;
   _sf_max_crit(): number;
   _sf_crit_ints(): number;
+  _sf_biome_supported(biome: number, mc: number): number;
   _sf_stat_scanned(): number;
   _sf_stat_stage2(): number;
   _sf_spawn(seed: bigint, mc: number, exact: number, out: number): number;
@@ -66,6 +67,11 @@ export class SearchEngine {
     return this.m._sf_supported(structure, mc) !== 0;
   }
 
+  /** Whether a biome generates in the overworld of a given Minecraft version. */
+  supportsBiome(biome: number, mc: number): boolean {
+    return this.m._sf_biome_supported(biome, mc) !== 0;
+  }
+
   /** Region grid size, in chunks, for a structure type. */
   regionSize(structure: number, mc: number): number {
     return this.m._sf_region_size(structure, mc);
@@ -91,11 +97,14 @@ export class SearchEngine {
     this.m.HEAP32.set(enc, this.critPtr >> 2);
     const rc = this.m._sf_configure(mc, radius, target, this.critPtr, criteria.length);
     if (rc < 0) {
-      throw new Error(
-        rc === -3
-          ? 'One of the selected structures does not exist in this Minecraft version.'
-          : `Search could not be configured (code ${rc}).`,
-      );
+      const messages: Record<number, string> = {
+        [-3]: 'One of the selected structures does not exist in this Minecraft version.',
+        [-4]: 'One of the selected biomes does not exist in this Minecraft version.',
+        [-5]:
+          'That radius is too large for a biome search. Reduce it, or drop the biome criteria.',
+        [-6]: 'Ran out of memory setting up the biome search.',
+      };
+      throw new Error(messages[rc] ?? `Search could not be configured (code ${rc}).`);
     }
   }
 
@@ -116,7 +125,8 @@ export class SearchEngine {
       for (let k = 0; k < criteria.length; k++) {
         const b = (this.dataPtr >> 2) + (i * this.maxCrit + k) * 4;
         hits.push({
-          structure: criteria[k]!.structure,
+          kind: criteria[k]!.kind,
+          id: criteria[k]!.id,
           x: this.m.HEAP32[b]!,
           z: this.m.HEAP32[b + 1]!,
           biome: this.m.HEAP32[b + 2]!,

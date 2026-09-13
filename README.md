@@ -1,15 +1,15 @@
 # SeedForge
 
-**Find Minecraft Java Edition seeds with the structures you want, near spawn.**
+**Find Minecraft Java Edition seeds with the structures and biomes you want, near spawn.**
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Live demo](https://img.shields.io/badge/demo-GitHub%20Pages-5ac36a.svg)](https://fwsoapy.github.io/seedforge/)
 [![Powered by Cubiomes](https://img.shields.io/badge/powered%20by-Cubiomes-blue.svg)](https://github.com/Cubitect/cubiomes)
 
-SeedForge searches for Minecraft seeds where every structure you ask for
-generates within a distance you choose of world spawn. Tick village, ruined
-portal and ancient city, set the radius to 500 blocks, hit search, and it hands
-you seeds that satisfy all three at once.
+SeedForge searches for Minecraft seeds where everything you ask for generates
+within a distance you choose of world spawn. Tick village, ruined portal and
+deep dark, set the radius to 500 blocks, hit search, and it hands you seeds that
+satisfy all three at once.
 
 It runs entirely in your browser. There is no seed database, no backend, no
 account and nothing leaves your machine.
@@ -20,8 +20,11 @@ account and nothing leaves your machine.
 
 ## Features
 
-- **Multi-structure search.** Pick as many structures as you like. A seed only
+- **Multi-criteria search.** Pick as many structures as you like. A seed only
   counts when *every* one of them has at least one instance inside the radius.
+- **Biome criteria too.** Hunt for the deep dark (wardens and ancient cities),
+  lush caves, dripstone caves, mushroom fields, cherry groves, ice spikes and
+  more, alongside your structure picks.
 - **Variant filters.** Village biome type (plains, desert, savanna, taiga,
   snowy) and zombie villages are exact. Village size, giant/underground ruined
   portals, igloo basements and cracked geodes are available as clearly labelled
@@ -75,6 +78,12 @@ compiled to WebAssembly. SeedForge does not reimplement the generation itself,
 and it does not store precomputed seeds anywhere.
 
 ## Supported Minecraft versions
+
+SeedForge supports every version Cubiomes does, which currently tops out at the
+1.21 Winter Drop. Newer releases arrive here when Cubiomes adds them upstream -
+generation changes have to be reimplemented there first, and guessing at them
+would just produce wrong seeds.
+
 
 | Version | Notable structures added |
 | --- | --- |
@@ -189,15 +198,23 @@ suspects.
 - Strongholds never generate closer than about 1280 blocks, and End cities never
   within 1008 blocks of the End origin. Asking for either at a small radius will
   never match.
-- Ravines, caves and ore placement are not searchable - they are not structures
-  in the region-grid sense and Cubiomes does not model them.
+- **Ravines and individual caves are not searchable.** They are carvers, cut
+  into terrain per chunk during world generation, not region-grid structures,
+  and Cubiomes does not model them. The closest available thing is the **lush
+  caves** and **dripstone caves** biome criteria, which do find large cave
+  systems.
+- Biome criteria are **sampled on a grid** - 1:16 for normal radii, coarser for
+  very large ones. A biome patch smaller than the sample spacing can be stepped
+  over, so a biome search can miss a small patch. It never invents one. Biome
+  searches are also noticeably slower than structure searches.
+- Ore placement is not searchable at all.
 
 Always verify a seed in-game before committing a world to it.
 
 ## Roadmap
 
+- [x] Biome criteria alongside structures
 - [ ] Cluster/quad searches (e.g. four witch huts in one perimeter)
-- [ ] Biome criteria alongside structures ("mushroom island within 1000 blocks")
 - [ ] Shareable search URLs
 - [ ] Export results as JSON/CSV
 - [ ] Bedrock Edition support (blocked on generation differences Cubiomes does
