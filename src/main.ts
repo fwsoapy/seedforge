@@ -36,6 +36,7 @@ const statScanned = $<HTMLElement>('stat-scanned');
 const statMatches = $<HTMLElement>('stat-matches');
 const statRate = $<HTMLElement>('stat-rate');
 const statThreads = $<HTMLElement>('stat-threads');
+const hintEl = $<HTMLElement>('slow-hint');
 
 const nf = new Intl.NumberFormat();
 
@@ -43,6 +44,9 @@ let meta: SearchEngine | null = null;
 let pool: SearchPool | null = null;
 let startedAt = 0;
 let lastRadius = 500;
+
+/** Seeds to scan with no match before suggesting the filters are too tight. */
+const SLOW_HINT_AFTER = 2_000_000;
 
 function showError(message: string | null): void {
   errorEl.hidden = message === null;
@@ -161,6 +165,7 @@ async function main(): Promise<void> {
           statMatches.textContent = nf.format(matchCount);
           const secs = (performance.now() - startedAt) / 1000;
           statRate.textContent = secs > 0 ? nf.format(Math.round(scanned / secs)) : '0';
+          hintEl.hidden = !(matchCount === 0 && scanned > SLOW_HINT_AFTER);
         },
         onDone: () => setRunning(false),
         onError: (message) => showError(message),
@@ -168,6 +173,7 @@ async function main(): Promise<void> {
       lanes,
     );
 
+    hintEl.hidden = true;
     progressPanel.hidden = false;
     setRunning(true);
     pool.start(config);
@@ -178,6 +184,7 @@ async function main(): Promise<void> {
   clearBtn.addEventListener('click', () => {
     resultsEl.replaceChildren();
     emptyEl.hidden = false;
+    hintEl.hidden = true;
   });
 }
 

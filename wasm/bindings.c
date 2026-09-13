@@ -425,6 +425,28 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
             g_ensnready = 1;
         }
 
+        /* 2a: biome confirmation against the widened origin radius.
+         * This runs BEFORE the spawn point is computed on purpose. Spawn
+         * estimation is by far the most expensive call per seed (it searches
+         * a 2048 block box for the fittest position in 1.18+), so anything
+         * that can reject a seed more cheaply has to run first. */
+        if (g_target != SF_TARGET_ORIGIN)
+        {   /* The origin is (0,0) in every dimension, so one centre works
+             * for overworld, nether and end criteria alike. */
+            for (k = 0; k < g_ncrit; k++)
+            {
+                Pos p; int biome;
+                if (!sf_confirm(&g_crit[k], seed, 0, 0, r1, &p, &biome))
+                {
+                    pass = 0;
+                    break;
+                }
+            }
+            if (!pass)
+                continue;
+        }
+
+        /* 2b: now the seed is worth the spawn calculation. */
         if (g_target == SF_TARGET_ESTIMATE)
         {
             Pos sp = estimateSpawn(sf_gen(DIM_OVERWORLD), NULL);
@@ -440,6 +462,7 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
             cx = 0; cz = 0;
         }
 
+        /* 2c: exact distance filtering around the real target point. */
         for (k = 0; k < g_ncrit; k++)
         {
             const Crit *c = &g_crit[k];

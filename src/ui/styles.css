@@ -172,6 +172,8 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .ghost { background: transparent; border-color: transparent; color: var(--muted); }
 .ghost:hover { color: var(--text); }
 
+.hint.slow { color: #d9a441; margin-top: 12px; }
+
 .error { color: var(--danger); font-size: 13.5px; margin: 14px 0 0; }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }

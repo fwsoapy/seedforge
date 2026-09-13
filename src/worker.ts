@@ -41,7 +41,7 @@ async function search(config: SearchConfig, lane: number, lanes: number, gen: nu
   const criteria: Criterion[] = config.criteria;
   eng.configure(config.mc, config.radius, config.target, criteria);
 
-  let block = 4096;
+  let block = 512;
   let scanned = 0;
   let stage2 = 0;
   let matchCount = 0;
