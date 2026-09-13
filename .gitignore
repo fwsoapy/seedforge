@@ -1,0 +1,6 @@
+node_modules/
+dist/
+src/wasm/
+*.log
+.DS_Store
+.emscripten_cache/
