@@ -51,12 +51,17 @@
 #define SF_TRAIT_BASEMENT    (1u << 4)  /* igloo with basement */
 #define SF_TRAIT_CRACKED     (1u << 5)  /* geode with a crack */
 
+/* Number of int32 values per criterion in the sf_configure() input array. */
+#define SF_CRIT_INTS 6
+
 typedef struct
 {
     int type;       /* StructureType or SF_STRONGHOLD */
     int variant;    /* biome id constraint, or -1 for "any" */
     uint32_t treq;  /* required trait bits */
     uint32_t tmask; /* which trait bits are constrained */
+    int areaMin;    /* starting-piece footprint bounds, 0 = unconstrained */
+    int areaMax;
     int dim;        /* DIM_OVERWORLD / DIM_NETHER / DIM_END */
     StructureConfig sconf;
     int hasconf;
@@ -134,8 +139,9 @@ int sf_mc_newest(void)
 /*
  * Configure the search.
  *
- * crit is a flat int32 array of 4 values per criterion:
- *   [ type, variantBiomeId (-1 = any), traitRequired, traitMask ]
+ * crit is a flat int32 array of SF_CRIT_INTS values per criterion:
+ *   [ type, variantBiomeId (-1 = any), traitRequired, traitMask,
+ *     startPieceAreaMin, startPieceAreaMax ]
  *
  * Returns the number of accepted criteria, or a negative error code.
  */
@@ -162,10 +168,12 @@ int sf_configure(int mc, int radius, int target, const int32_t *crit, int ncrit)
     for (i = 0; i < ncrit; i++)
     {
         Crit *c = &g_crit[i];
-        c->type    = crit[i * 4 + 0];
-        c->variant = crit[i * 4 + 1];
-        c->treq    = (uint32_t) crit[i * 4 + 2];
-        c->tmask   = (uint32_t) crit[i * 4 + 3];
+        c->type    = crit[i * SF_CRIT_INTS + 0];
+        c->variant = crit[i * SF_CRIT_INTS + 1];
+        c->treq    = (uint32_t) crit[i * SF_CRIT_INTS + 2];
+        c->tmask   = (uint32_t) crit[i * SF_CRIT_INTS + 3];
+        c->areaMin = crit[i * SF_CRIT_INTS + 4];
+        c->areaMax = crit[i * SF_CRIT_INTS + 5];
         c->dim     = sf_dim_of(c->type);
         c->hasconf = 0;
 
@@ -277,10 +285,27 @@ static int sf_traits_ok(const Crit *c, uint64_t seed, Pos p, int biome)
     StructureVariant sv;
     uint32_t t = 0;
 
-    if (!c->tmask)
+    if (!c->tmask && !c->areaMin && !c->areaMax)
         return 1;
     if (!getVariant(&sv, c->type, g_mc, seed, p.x, p.z, biome))
         return 0;
+
+    /* Footprint of the starting piece. This is real data from getVariant(),
+     * but it is only a weak proxy for the village's final size: the jigsaw
+     * expansion that actually decides that is not modelled by cubiomes.
+     * Exposed as a best-effort filter, labelled experimental in the UI. */
+    if (c->areaMin || c->areaMax)
+    {
+        int area = (int) sv.sx * (int) sv.sz;
+        if (area <= 0)
+            return 0;
+        if (c->areaMin && area < c->areaMin)
+            return 0;
+        if (c->areaMax && area > c->areaMax)
+            return 0;
+    }
+    if (!c->tmask)
+        return 1;
 
     if (sv.abandoned)   t |= SF_TRAIT_ABANDONED;
     if (sv.giant)       t |= SF_TRAIT_GIANT;
@@ -517,3 +542,6 @@ int sf_spawn(uint64_t seed, int mc, int exact, int32_t *out)
     out[1] = p.z;
     return 1;
 }
+
+EMSCRIPTEN_KEEPALIVE
+int sf_crit_ints(void) { return SF_CRIT_INTS; }

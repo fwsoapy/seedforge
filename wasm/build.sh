@@ -29,7 +29,7 @@ SRC=(
   "$CUBIOMES/quadbase.c"
 )
 
-EXPORTED_FUNCTIONS='["_sf_configure","_sf_run","_sf_supported","_sf_region_size","_sf_mc_newest","_sf_stat_scanned","_sf_stat_stage2","_sf_max_crit","_sf_spawn","_malloc","_free"]'
+EXPORTED_FUNCTIONS='["_sf_configure","_sf_run","_sf_supported","_sf_region_size","_sf_mc_newest","_sf_stat_scanned","_sf_stat_stage2","_sf_max_crit","_sf_crit_ints","_sf_spawn","_malloc","_free"]'
 
 emcc "${SRC[@]}" \
   -I"$CUBIOMES" \

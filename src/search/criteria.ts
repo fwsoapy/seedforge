@@ -3,11 +3,16 @@
 import { structureById } from '../data/structures';
 import type { Criterion } from './types';
 
+/** Must match SF_CRIT_INTS in wasm/bindings.c. */
+export const CRIT_INTS = 6;
+
 export interface EncodedCriterion {
   type: number;
   biome: number;
   traitReq: number;
   traitMask: number;
+  areaMin: number;
+  areaMax: number;
 }
 
 /**
@@ -18,7 +23,14 @@ export interface EncodedCriterion {
  */
 export function encodeCriterion(c: Criterion): EncodedCriterion {
   const def = structureById(c.structure);
-  const out: EncodedCriterion = { type: c.structure, biome: -1, traitReq: 0, traitMask: 0 };
+  const out: EncodedCriterion = {
+    type: c.structure,
+    biome: -1,
+    traitReq: 0,
+    traitMask: 0,
+    areaMin: 0,
+    areaMax: 0,
+  };
   if (!def?.variants) return out;
 
   for (const group of def.variants) {
@@ -31,18 +43,22 @@ export function encodeCriterion(c: Criterion): EncodedCriterion {
       out.traitMask |= opt.traitMask;
       out.traitReq |= opt.traitReq ?? 0;
     }
+    if (opt.areaMin !== undefined) out.areaMin = opt.areaMin;
+    if (opt.areaMax !== undefined) out.areaMax = opt.areaMax;
   }
   return out;
 }
 
 export function encodeCriteria(criteria: readonly Criterion[]): Int32Array {
-  const buf = new Int32Array(criteria.length * 4);
+  const buf = new Int32Array(criteria.length * CRIT_INTS);
   criteria.forEach((c, i) => {
     const e = encodeCriterion(c);
-    buf[i * 4 + 0] = e.type;
-    buf[i * 4 + 1] = e.biome;
-    buf[i * 4 + 2] = e.traitReq;
-    buf[i * 4 + 3] = e.traitMask;
+    buf[i * CRIT_INTS + 0] = e.type;
+    buf[i * CRIT_INTS + 1] = e.biome;
+    buf[i * CRIT_INTS + 2] = e.traitReq;
+    buf[i * CRIT_INTS + 3] = e.traitMask;
+    buf[i * CRIT_INTS + 4] = e.areaMin;
+    buf[i * CRIT_INTS + 5] = e.areaMax;
   });
   return buf;
 }

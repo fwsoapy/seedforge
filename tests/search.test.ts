@@ -15,6 +15,7 @@ const MC_1_20 = 25;
 const MC_1_21_1 = 26;
 
 const MAX_OUT = 64;
+const CRIT_INTS = 6;
 
 let M: any;
 let maxCrit = 16;
@@ -46,7 +47,7 @@ function search(
   start: bigint,
   count: number,
 ): Found[] {
-  const flat = crits.flatMap((c) => [c[0]!, c[1] ?? -1, c[2] ?? 0, c[3] ?? 0]);
+  const flat = crits.flatMap((c) => [c[0]!, c[1] ?? -1, c[2] ?? 0, c[3] ?? 0, c[4] ?? 0, c[5] ?? 0]);
   M.HEAP32.set(flat, critPtr >> 2);
   const rc = M._sf_configure(mc, radius, target, critPtr, crits.length);
   expect(rc).toBe(crits.length);
@@ -73,7 +74,8 @@ function search(
 beforeAll(async () => {
   M = await loadModule();
   maxCrit = M._sf_max_crit();
-  critPtr = M._malloc(maxCrit * 16);
+  expect(M._sf_crit_ints()).toBe(CRIT_INTS);
+  critPtr = M._malloc(maxCrit * CRIT_INTS * 4);
   seedsPtr = M._malloc(MAX_OUT * 8);
   dataPtr = M._malloc(MAX_OUT * maxCrit * 16);
   spawnPtr = M._malloc(MAX_OUT * 8);
@@ -137,6 +139,35 @@ describe('variant filters', () => {
       expect(found.length, `no ${name} village found`).toBeGreaterThan(0);
       for (const f of found) expect(f.hits[0]!.biome).toBe(id);
     }
+  });
+});
+
+describe('experimental village size filter', () => {
+  it('selects a strict, disjoint subset of the unfiltered villages', () => {
+    // A tight radius over a short seed range keeps every search well under
+    // the output buffer cap, so the result sets are directly comparable.
+    const args = [MC_1_21_1, 150, 0] as const;
+    const start = 5_000n;
+    const count = 700;
+    const key = (f: Found) => `${f.seed}:${f.hits[0]!.x},${f.hits[0]!.z}`;
+
+    const all = search(...args, [[STRUCT.Village]], start, count);
+    const small = search(...args, [[STRUCT.Village, -1, 0, 0, 0, 100]], start, count);
+    const large = search(...args, [[STRUCT.Village, -1, 0, 0, 201, 0]], start, count);
+
+    expect(all.length).toBeGreaterThan(0);
+    expect(all.length).toBeLessThan(MAX_OUT);
+    expect(small.length).toBeGreaterThan(0);
+    expect(large.length).toBeGreaterThan(0);
+
+    const allKeys = new Set(all.map(key));
+    for (const f of small) expect(allKeys.has(key(f))).toBe(true);
+    for (const f of large) expect(allKeys.has(key(f))).toBe(true);
+
+    // The buckets do not overlap, and neither covers everything.
+    const smallKeys = new Set(small.map(key));
+    for (const f of large) expect(smallKeys.has(key(f))).toBe(false);
+    expect(small.length + large.length).toBeLessThan(all.length);
   });
 });
 

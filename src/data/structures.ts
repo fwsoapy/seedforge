@@ -59,6 +59,9 @@ export interface VariantOption {
   readonly traitReq?: number;
   /** Trait bits this option constrains. */
   readonly traitMask?: number;
+  /** Starting-piece footprint bounds in blocks squared (0 = unbounded). */
+  readonly areaMin?: number;
+  readonly areaMax?: number;
 }
 
 export interface VariantGroup {
@@ -66,6 +69,8 @@ export interface VariantGroup {
   readonly label: string;
   /** Shown with an "experimental" warning in the UI. */
   readonly experimental?: boolean;
+  /** Extra explanation rendered under the dropdown. */
+  readonly note?: string;
   readonly options: readonly VariantOption[];
 }
 
@@ -96,6 +101,18 @@ export const STRUCTURES: readonly StructureDef[] = [
           { value: 'savanna', label: 'Savanna', biome: BIOME.savanna },
           { value: 'taiga', label: 'Taiga', biome: BIOME.taiga },
           { value: 'snowy', label: 'Snowy', biome: BIOME.snowy_tundra },
+        ],
+      },
+      {
+        key: 'size',
+        label: 'Size',
+        experimental: true,
+        note: 'Inferred from the starting meeting-point piece. The jigsaw expansion that decides the real village size is not modelled, so treat this as a hint.',
+        options: [
+          ANY,
+          { value: 'small', label: 'Small start', areaMax: 100 },
+          { value: 'medium', label: 'Medium start', areaMin: 101, areaMax: 200 },
+          { value: 'large', label: 'Large start', areaMin: 201 },
         ],
       },
       {

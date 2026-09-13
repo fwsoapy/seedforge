@@ -107,6 +107,12 @@ export class StructurePicker {
         });
 
         wrap.append(title, select);
+        if (group.note) {
+          const note = document.createElement('span');
+          note.className = 'variant-note';
+          note.textContent = group.note;
+          wrap.append(note);
+        }
         variantBox.append(wrap);
       }
       card.append(variantBox);

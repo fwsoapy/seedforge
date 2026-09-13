@@ -16,16 +16,16 @@ account and nothing leaves your machine.
 
 **Live demo:** https://fwsoapy.github.io/seedforge/
 
-<!-- TODO: replace with a real screenshot / demo GIF -->
-![Screenshot placeholder](docs/screenshot.png)
+![SeedForge searching for a village, a ruined portal and an ancient city within 500 blocks of spawn](docs/screenshot.png)
 
 ## Features
 
 - **Multi-structure search.** Pick as many structures as you like. A seed only
   counts when *every* one of them has at least one instance inside the radius.
 - **Variant filters.** Village biome type (plains, desert, savanna, taiga,
-  snowy) and zombie villages are exact. Giant/underground ruined portals, igloo
-  basements and cracked geodes are available as best-effort filters.
+  snowy) and zombie villages are exact. Village size, giant/underground ruined
+  portals, igloo basements and cracked geodes are available as clearly labelled
+  best-effort filters.
 - **Any distance you want.** Defaults to 500 blocks, adjustable from 16 blocks
   to a whole continent.
 - **Measure from where it matters.** World origin (fastest), estimated world
@@ -181,9 +181,11 @@ suspects.
   blocks, because the game's final spawn search depends on block-level terrain.
 - Nether structure distances are measured in Nether coordinates, from the
   Nether-side equivalent of the target point (x/8, z/8).
-- Village size (small / medium / large) is not exposed by Cubiomes in any
-  reliable form and is deliberately not offered as a filter, rather than shipped
-  as a guess. Village biome type and zombie villages are exact.
+- Village size is **experimental**. Cubiomes exposes the village's starting
+  meeting-point piece, and its footprint is what the size filter buckets on.
+  The jigsaw expansion that decides the real final size is not modelled, so
+  treat it as a hint rather than a guarantee. It is labelled as such in the UI.
+  Village biome type and zombie villages, by contrast, are exact.
 - Strongholds never generate closer than about 1280 blocks, and End cities never
   within 1008 blocks of the End origin. Asking for either at a small radius will
   never match.
