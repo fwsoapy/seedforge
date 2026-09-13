@@ -193,7 +193,7 @@ export const STRUCTURES: readonly StructureDef[] = [
       },
     ],
   },
-  { id: STRUCT.Stronghold, name: 'Stronghold', dim: 'overworld', note: 'The first ring never generates closer than ~1280 blocks' },
+  { id: STRUCT.Stronghold, name: 'Stronghold', dim: 'overworld', note: 'The first ring never generates closer than ~1280 blocks. Slow to search.' },
   { id: STRUCT.Fortress, name: 'Nether fortress', dim: 'nether', note: 'Distance is measured in Nether coordinates' },
   { id: STRUCT.Bastion, name: 'Bastion remnant', dim: 'nether', note: 'Distance is measured in Nether coordinates' },
   { id: STRUCT.Ruined_Portal_N, name: 'Ruined portal (Nether)', dim: 'nether', note: 'Distance is measured in Nether coordinates' },

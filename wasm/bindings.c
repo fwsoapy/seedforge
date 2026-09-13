@@ -229,9 +229,10 @@ static int sf_candidates(const Crit *c, uint64_t seed, int cx, int cz, int r,
         StrongholdIter sh;
         int i;
         initFirstStronghold(&sh, g_mc, seed);
-        /* Strongholds are emitted in rings of increasing distance, so we can
-         * stop once the approximate position is hopelessly far out. The
-         * +/-112 block slack covers the approximation error. */
+        /* Strongholds are emitted ring by ring at increasing distance. The
+         * +/-112 block slack covers the error of the approximate position,
+         * and the extra 4096 covers the spread within a single ring, which is
+         * wider than the ring-to-ring step. */
         for (i = 0; i < 256; i++)
         {
             int64_t dx = sh.nextapprox.x - (int64_t) cx;
@@ -239,12 +240,8 @@ static int sf_candidates(const Crit *c, uint64_t seed, int cx, int cz, int r,
             double d = sqrt((double)(dx * dx + dz * dz));
             if (d <= r + 112 && n < SF_MAX_HITS)
                 out[n++] = sh.nextapprox;
-            if (d > r + 112 && sh.ringnum > 0 && sh.ringidx == 0 && i > 0)
-            {
-                /* whole previous ring was out of range and rings grow */
-                if (d - 112 > r + 2048)
-                    break;
-            }
+            if (d > r + 112 + 4096)
+                break;
             if (!nextStronghold(&sh, NULL))
                 break;
         }

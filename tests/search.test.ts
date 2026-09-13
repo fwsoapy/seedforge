@@ -142,6 +142,22 @@ describe('variant filters', () => {
   });
 });
 
+describe('strongholds', () => {
+  it('never places one closer than the first ring', () => {
+    expect(search(MC_1_21_1, 500, 0, [[STRUCT.Stronghold]], 0n, 3_000)).toHaveLength(0);
+  });
+
+  it('finds them once the radius reaches the first ring', () => {
+    const found = search(MC_1_21_1, 2_000, 0, [[STRUCT.Stronghold]], 0n, 400);
+    expect(found.length).toBeGreaterThan(0);
+    for (const f of found) {
+      const d = Math.hypot(f.hits[0]!.x, f.hits[0]!.z);
+      expect(d).toBeLessThanOrEqual(2_000);
+      expect(d).toBeGreaterThan(1_200);
+    }
+  });
+});
+
 describe('experimental village size filter', () => {
   it('selects a strict, disjoint subset of the unfiltered villages', () => {
     // A tight radius over a short seed range keeps every search well under
