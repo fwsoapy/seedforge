@@ -168,6 +168,16 @@
             chunk rather than placed on a region grid, so Cubiomes does not model them. The lush
             caves and dripstone caves biome criteria are the closest available thing.
           </li>
+          <li>
+            Proximity rules only apply between structures in the same dimension. Nether and
+            overworld coordinates are not comparable, so such a rule is rejected rather than
+            measured wrongly.
+          </li>
+          <li>
+            Stronghold filters cover position and ring only. What is inside a stronghold - portal
+            room orientation, whether it has a library - comes from its piece layout, which
+            Cubiomes does not generate.
+          </li>
           <li>Always verify a seed in-game before committing a world to it.</li>
         </ul>
       </details>

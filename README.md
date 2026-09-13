@@ -21,14 +21,20 @@ account and nothing leaves your machine.
 ## Features
 
 - **Multi-criteria search.** Pick as many structures as you like. A seed only
-  counts when *every* one of them has at least one instance inside the radius.
+  counts when *every* one of them has at least one instance inside its radius.
+- **A distance per criterion.** Each pick carries its own limit, so "village
+  within 100 blocks, ruined portal within 500" is one search, not a compromise.
+- **Proximity rules.** Require two picks to generate near each other -
+  "ruined portal within 100 blocks of the village" - on top of their own
+  distances from spawn.
 - **Biome criteria too.** Hunt for the deep dark (wardens and ancient cities),
   lush caves, dripstone caves, mushroom fields, cherry groves, ice spikes and
   more, alongside your structure picks.
 - **Variant filters.** Village biome type (plains, desert, savanna, taiga,
-  snowy) and zombie villages are exact. Village size, giant/underground ruined
-  portals, igloo basements and cracked geodes are available as clearly labelled
-  best-effort filters.
+  snowy) and zombie villages are exact. Ruined portals split into three
+  independent selectors - type, placement and template. Bastion remnants filter
+  by all four in-game types, and strongholds by ring. Village size, igloo
+  basements and cracked geodes are clearly labelled best-effort filters.
 - **Any distance you want.** Defaults to 500 blocks, adjustable from 16 blocks
   to a whole continent.
 - **Measure from where it matters.** World origin (fastest), estimated world
@@ -42,6 +48,8 @@ account and nothing leaves your machine.
 - **Streaming results.** Matches appear as they are found, with a live
   seeds-scanned counter and a stop button. A bad filter combination never
   freezes the page.
+- **Preview map.** Every result gets a map with compass directions, a ring per
+  criterion radius, and hover details for each structure.
 - **Private by design.** 100% client-side. No API keys, no analytics, no data
   collection.
 
@@ -80,9 +88,13 @@ and it does not store precomputed seeds anywhere.
 ## Supported Minecraft versions
 
 SeedForge supports every version Cubiomes does, which currently tops out at the
-1.21 Winter Drop. Newer releases arrive here when Cubiomes adds them upstream -
-generation changes have to be reimplemented there first, and guessing at them
-would just produce wrong seeds.
+1.21 Winter Drop.
+
+Minecraft moved to year-based version numbers in 2026 (26.1 was the first game
+drop of that year, 26.2 "Chaos Cubed" the second). Upstream Cubiomes has not
+been updated since November 2024 and does not cover them yet. Rather than label
+a version we cannot actually generate, the selector stops where the generation
+code stops - see [ROADMAP](#roadmap).
 
 
 | Version | Notable structures added |
@@ -198,6 +210,12 @@ suspects.
 - Strongholds never generate closer than about 1280 blocks, and End cities never
   within 1008 blocks of the End origin. Asking for either at a small radius will
   never match.
+- Stronghold **portal room orientation and library presence are not
+  filterable**. Those depend on the stronghold's internal piece layout, which
+  Cubiomes does not generate, so there is no honest way to offer them.
+- Proximity rules only work between structures in the **same dimension**.
+  Nether and overworld coordinates are not comparable, so such a rule is
+  rejected rather than silently measured wrong.
 - **Ravines and individual caves are not searchable.** They are carvers, cut
   into terrain per chunk during world generation, not region-grid structures,
   and Cubiomes does not model them. The closest available thing is the **lush
@@ -214,6 +232,9 @@ Always verify a seed in-game before committing a world to it.
 ## Roadmap
 
 - [x] Biome criteria alongside structures
+- [x] Per-criterion distances and proximity rules between structures
+- [ ] Minecraft 26.x support (needs a Cubiomes build that generates them)
+- [ ] Ruined portal chest loot filtering
 - [ ] Cluster/quad searches (e.g. four witch huts in one perimeter)
 - [ ] Shareable search URLs
 - [ ] Export results as JSON/CSV
