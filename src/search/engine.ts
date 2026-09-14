@@ -16,7 +16,7 @@ interface EmscriptenModule {
   HEAPU8: Uint8Array;
   _malloc(bytes: number): number;
   _free(ptr: number): void;
-  _sf_configure(mc: number, edition: number, target: number, crit: number, ncrit: number, pairs: number, npairs: number): number;
+  _sf_configure(mc: number, edition: number, target: number, verify: number, crit: number, ncrit: number, pairs: number, npairs: number): number;
   _sf_run(start: bigint, count: number, seeds: number, data: number, spawn: number, maxOut: number): number;
   _sf_supported(type: number, mc: number): number;
   _sf_region_size(type: number, mc: number): number;
@@ -87,6 +87,7 @@ export class SearchEngine {
     target: TargetMode,
     criteria: readonly Criterion[],
     rules: readonly ProximityRule[] = [],
+    verify = false,
   ): void {
     if (criteria.length === 0) throw new Error('Pick at least one structure.');
     if (criteria.length > this.maxCrit) {
@@ -98,7 +99,8 @@ export class SearchEngine {
     this.m.HEAP32.set(encodeCriteria(criteria), this.critPtr >> 2);
     this.m.HEAP32.set(encodeRules(rules), this.pairPtr >> 2);
     const rc = this.m._sf_configure(
-      mc, edition, target, this.critPtr, criteria.length, this.pairPtr, rules.length,
+      mc, edition, target, verify ? 1 : 0,
+      this.critPtr, criteria.length, this.pairPtr, rules.length,
     );
     if (rc < 0) {
       const messages: Record<number, string> = {
@@ -173,8 +175,9 @@ export class SearchEngine {
     target: TargetMode,
     criteria: readonly Criterion[],
     rules: readonly ProximityRule[] = [],
+    verify = false,
   ): Match | null {
-    this.configure(mc, edition, target, criteria, rules);
+    this.configure(mc, edition, target, criteria, rules, verify);
     const { matches } = this.run(seed, 1, criteria);
     return matches[0] ?? null;
   }

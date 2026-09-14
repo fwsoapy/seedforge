@@ -57,6 +57,7 @@ function search(
   count: number,
   rules: number[][] = [],
   edition = 0,
+  verify = 0,
 ): Found[] {
   // [ kind, type, variant, traitReq, traitMask, areaMin, areaMax, sampleY,
   //   radius, subtype ]
@@ -66,7 +67,9 @@ function search(
   ]);
   M.HEAP32.set(flat, critPtr >> 2);
   M.HEAP32.set(rules.flat(), pairPtr >> 2);
-  const rc = M._sf_configure(mc, edition, target, critPtr, crits.length, pairPtr, rules.length);
+  const rc = M._sf_configure(
+    mc, edition, target, verify, critPtr, crits.length, pairPtr, rules.length,
+  );
   expect(rc).toBe(crits.length);
 
   const n = M._sf_run(start, count, seedsPtr, dataPtr, spawnPtr, MAX_OUT);
@@ -246,7 +249,60 @@ describe('biome criteria', () => {
     const flat = [...dd()];
     flat[8] = 500_000;
     M.HEAP32.set(flat, critPtr >> 2);
-    expect(M._sf_configure(MC_1_21_1, 0, 0, critPtr, 1, pairPtr, 0)).toBe(-5);
+    expect(M._sf_configure(MC_1_21_1, 0, 0, 0, critPtr, 1, pairPtr, 0)).toBe(-5);
+  });
+});
+
+describe('double-checking against the exact spawn', () => {
+  const ORIGIN = 0;
+  const ESTIMATE = 1;
+  const EXACT = 2;
+  // Tight enough that the gap between the origin and the real spawn decides
+  // some of the seeds either way.
+  const crit = [[K_STRUCT, STRUCT.Village, -1, 0, 0, 0, 0, 0, 200]];
+  // Small enough that neither search reaches the 64-match output cap, which
+  // would truncate both and make the comparisons meaningless.
+  const SEEDS = 600;
+
+  it('drops origin matches that do not hold at the real spawn', () => {
+    const plain = search(MC_26_2, 0, ORIGIN, crit, 0n, SEEDS, [], 0, 0);
+    const checked = search(MC_26_2, 0, ORIGIN, crit, 0n, SEEDS, [], 0, 1);
+    expect(plain.length).toBeGreaterThan(0);
+    expect(checked.length).toBeGreaterThan(0);
+
+    const key = (f: Found) => String(f.seed);
+    const kept = new Set(checked.map(key));
+    // Strictly a filter: it can only ever remove seeds from the origin scan.
+    expect(checked.length).toBeLessThan(plain.length);
+    for (const f of checked) expect(plain.map(key)).toContain(key(f));
+    expect(kept.size).toBe(checked.length);
+  });
+
+  it('keeps only seeds that really do satisfy the criteria from spawn', () => {
+    const checked = search(MC_26_2, 0, ORIGIN, crit, 0n, SEEDS, [], 0, 1);
+    const fromSpawn = new Set(
+      search(MC_26_2, 0, EXACT, crit, 0n, SEEDS, [], 0, 0).map((f) => String(f.seed)),
+    );
+    expect(checked.length).toBeGreaterThan(0);
+    // Everything it keeps is also found by a real exact-spawn search. The
+    // reverse does not hold: this one additionally requires the origin.
+    for (const f of checked) expect(fromSpawn.has(String(f.seed))).toBe(true);
+  });
+
+  it('reports the exact spawn rather than the origin', () => {
+    const checked = search(MC_26_2, 0, ORIGIN, crit, 0n, SEEDS, [], 0, 1);
+    expect(checked.length).toBeGreaterThan(0);
+    // An origin search reports (0, 0); with double-checking it has to report
+    // the spawn it actually confirmed against.
+    expect(checked.some((f) => f.spawnX !== 0 || f.spawnZ !== 0)).toBe(true);
+  });
+
+  it('is ignored on targets that compute the spawn anyway', () => {
+    for (const target of [ESTIMATE, EXACT]) {
+      const off = search(MC_26_2, 0, target, crit, 0n, SEEDS, [], 0, 0);
+      const on = search(MC_26_2, 0, target, crit, 0n, SEEDS, [], 0, 1);
+      expect(on.map((f) => String(f.seed))).toEqual(off.map((f) => String(f.seed)));
+    }
   });
 });
 
@@ -305,7 +361,7 @@ describe('bedrock edition', () => {
     expect(M._sf_bedrock_supported(STRUCT.Trial_Chambers)).toBe(0);
 
     M.HEAP32.set([K_STRUCT, STRUCT.Mineshaft, -1, 0, 0, 0, 0, 0, 500, -1], critPtr >> 2);
-    expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(-10);
+    expect(M._sf_configure(MC_26_2, BEDROCK, 0, 0, critPtr, 1, pairPtr, 0)).toBe(-10);
   });
 
   // Fortresses and bastions share one region grid on Bedrock and exactly one
@@ -376,16 +432,16 @@ describe('bedrock edition', () => {
       K_STRUCT, STRUCT.Ruined_Portal, -1, 0, /* traitMask */ 4, 0, 0, 0, 500, -1,
     ];
     M.HEAP32.set(portalAboveGround, critPtr >> 2);
-    expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(-11);
+    expect(M._sf_configure(MC_26_2, BEDROCK, 0, 0, critPtr, 1, pairPtr, 0)).toBe(-11);
     // the same filter is fine on Java
-    expect(M._sf_configure(MC_26_2, 0, 0, critPtr, 1, pairPtr, 0)).toBe(1);
+    expect(M._sf_configure(MC_26_2, 0, 0, 0, critPtr, 1, pairPtr, 0)).toBe(1);
 
     // igloo basements come from getVariant too
     const iglooBasement = [
       K_STRUCT, STRUCT.Igloo, -1, /* traitReq */ 16, /* traitMask */ 16, 0, 0, 0, 500, -1,
     ];
     M.HEAP32.set(iglooBasement, critPtr >> 2);
-    expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(-11);
+    expect(M._sf_configure(MC_26_2, BEDROCK, 0, 0, critPtr, 1, pairPtr, 0)).toBe(-11);
   });
 
   it('still allows the village biome constraint, which is biome-derived', () => {
@@ -393,7 +449,7 @@ describe('bedrock edition', () => {
     // is meaningful on Bedrock where the getVariant traits are not.
     const desertVillage = [K_STRUCT, STRUCT.Village, BIOME.desert, 0, 0, 0, 0, 0, 2_000, -1];
     M.HEAP32.set(desertVillage, critPtr >> 2);
-    expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(1);
+    expect(M._sf_configure(MC_26_2, BEDROCK, 0, 0, critPtr, 1, pairPtr, 0)).toBe(1);
 
     const found = search(
       MC_26_2, 0, 0,
@@ -406,8 +462,8 @@ describe('bedrock edition', () => {
 
   it('refuses Bedrock before 1.18, when the generators were still separate', () => {
     M.HEAP32.set([K_STRUCT, STRUCT.Village, -1, 0, 0, 0, 0, 0, 500, -1], critPtr >> 2);
-    expect(M._sf_configure(MC_1_16, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(-9);
-    expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(1);
+    expect(M._sf_configure(MC_1_16, BEDROCK, 0, 0, critPtr, 1, pairPtr, 0)).toBe(-9);
+    expect(M._sf_configure(MC_26_2, BEDROCK, 0, 0, critPtr, 1, pairPtr, 0)).toBe(1);
   });
 });
 
@@ -559,13 +615,13 @@ describe('proximity rules', () => {
     ].flat();
     M.HEAP32.set(flat, critPtr >> 2);
     M.HEAP32.set([0, 1, 100], pairPtr >> 2);
-    expect(M._sf_configure(MC_1_21_1, 0, 0, critPtr, 2, pairPtr, 1)).toBe(-8);
+    expect(M._sf_configure(MC_1_21_1, 0, 0, 0, critPtr, 2, pairPtr, 1)).toBe(-8);
   });
 
   it('rejects a rule pointing at itself', () => {
     M.HEAP32.set([K_STRUCT, STRUCT.Village, -1, 0, 0, 0, 0, 0, 500, -1], critPtr >> 2);
     M.HEAP32.set([0, 0, 100], pairPtr >> 2);
-    expect(M._sf_configure(MC_1_21_1, 0, 0, critPtr, 1, pairPtr, 1)).toBe(-7);
+    expect(M._sf_configure(MC_1_21_1, 0, 0, 0, critPtr, 1, pairPtr, 1)).toBe(-7);
   });
 });
 

@@ -387,6 +387,11 @@ button.small { padding: 7px 13px; font-size: 13px; }
 .advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .advanced .row { margin-top: 12px; }
 
+.check-field { margin-top: 14px; }
+.check-line { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 13.5px; }
+.check-line input { width: auto; flex: none; margin: 0; accent-color: var(--accent); }
+.check-field .field-hint { margin-left: 25px; max-width: 62ch; }
+
 .check-row { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
 .check-row .field { max-width: 420px; }
 .check-input { display: flex; gap: 8px; }

@@ -190,6 +190,17 @@
               <span class="field-hint">0 = auto (one per CPU core)</span>
             </label>
           </div>
+          <label class="field check-field">
+            <span class="check-line">
+              <input id="verify" type="checkbox" />
+              <span>Double-check against the exact spawn</span>
+            </span>
+            <span id="verify-hint" class="field-hint">
+              Scans from (0, 0), which is far faster, then works out the real spawn of each match
+              and requires everything to still be in range from there. Seeds that are not are
+              dropped.
+            </span>
+          </label>
         </details>
 
         <div class="check-row">
@@ -317,6 +328,13 @@
             portal type and placement, bastion type, zombie villages, igloo basements and cracked
             geodes all come from Java's RNG, so on Bedrock they would describe a different world.
             Village biome type still works, because it comes from biome generation.
+          </li>
+          <li>
+            "Double-check against the exact spawn" scans from the origin, which needs no spawn
+            calculation and is around 270 times faster, then works out the real spawn of each match
+            and requires the criteria to hold from there too. It is a filter on an origin search,
+            not a faster way to run a spawn search: the radii still mean "from (0, 0)", with "and
+            from the real spawn as well" added on top.
           </li>
           <li>Always verify a seed in-game before committing a world to it.</li>
         </ul>

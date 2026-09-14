@@ -41,6 +41,11 @@ export interface SearchConfig {
   mc: number;
   edition: Edition;
   target: TargetMode;
+  /**
+   * Re-check every match against the exact world spawn before reporting it.
+   * Only affects an origin search, the one target that computes no spawn.
+   */
+  verify: boolean;
   criteria: Criterion[];
   /** Extra AND conditions between pairs of criteria. */
   rules: ProximityRule[];

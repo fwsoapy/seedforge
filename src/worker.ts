@@ -49,7 +49,7 @@ const idle = (): Promise<void> => new Promise((r) => setTimeout(r, 80));
 async function search(config: SearchConfig, lane: number, lanes: number, gen: number): Promise<void> {
   const eng = await ensureEngine();
   const criteria: Criterion[] = config.criteria;
-  eng.configure(config.mc, config.edition, config.target, criteria, config.rules);
+  eng.configure(config.mc, config.edition, config.target, criteria, config.rules, config.verify);
 
   let block = 64;
   let scanned = 0;

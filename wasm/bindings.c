@@ -43,6 +43,26 @@
  * that; getSpawn() may wander a little further, hence the slack. */
 #define SF_SPAWN_MARGIN 2816
 
+/*
+ * Double-checking.
+ *
+ * Scanning from the origin needs no spawn calculation at all, which makes it
+ * around 270x faster than either spawn target (measured: 59,097 seeds/s
+ * against 221). Double-checking keeps that speed for the scan and then pays
+ * for one getSpawn() per seed that already matched, confirming the same
+ * criteria around the real spawn and dropping the seed if they no longer hold.
+ *
+ * The radii still mean "from the origin"; this adds "and from the real spawn
+ * as well" rather than replacing one with the other. It is not a faster way to
+ * run a spawn-targeted search - there isn't one, because the spawn of every
+ * seed has to be computed to know where its radius even is.
+ *
+ * An earlier attempt prefiltered on estimateSpawn() and confirmed with
+ * getSpawn(). That turned out to be pointless: the two cost nearly the same
+ * (230 against 221 seeds/s), so it was slower than just targeting the exact
+ * spawn while returning identical results.
+ */
+
 /* Variant trait bits (see getVariant()). */
 #define SF_TRAIT_ABANDONED   (1u << 0)  /* zombie village */
 #define SF_TRAIT_GIANT       (1u << 1)  /* giant ruined portal */
@@ -249,6 +269,7 @@ static int       g_ensnready;
 
 static int  g_mc = MC_NEWEST;
 static int  g_target = SF_TARGET_ORIGIN;
+static int  g_verify = 0;       /* confirm matches against the exact spawn */
 static int  g_ncrit = 0;
 static Crit g_crit[SF_MAX_CRIT];
 static int  g_needow = 0;       /* overworld generator needed for the target */
@@ -335,7 +356,8 @@ int sf_mc_newest(void)
  * Returns the number of accepted criteria, or a negative error code.
  */
 EMSCRIPTEN_KEEPALIVE
-int sf_configure(int mc, int edition, int target, const int32_t *crit, int ncrit,
+int sf_configure(int mc, int edition, int target, int verify,
+                 const int32_t *crit, int ncrit,
                  const int32_t *pairs, int npairs)
 {
     int i, d, pass;
@@ -348,6 +370,9 @@ int sf_configure(int mc, int edition, int target, const int32_t *crit, int ncrit
 
     g_mc = mc;
     g_edition = edition;
+    /* Only an origin scan gains anything: the spawn targets already compute
+     * the spawn for every seed they look at. */
+    g_verify = verify && target == SF_TARGET_ORIGIN;
     g_target = target;
     /* Bedrock and Java only share a generator from 1.18, when the two were
      * unified onto the same noise and climate system. Before that the biome
@@ -357,7 +382,7 @@ int sf_configure(int mc, int edition, int target, const int32_t *crit, int ncrit
     g_ncrit = ncrit;
     g_nbiome = 0;
     g_npair = npairs;
-    g_needow = (target != SF_TARGET_ORIGIN);
+    g_needow = (target != SF_TARGET_ORIGIN) || g_verify;
 
     for (d = 0; d < 3; d++)
         g_genready[d] = 0;
@@ -924,6 +949,44 @@ static int sf_solve(int k)
  *
  * Returns the number of matches written.
  */
+/*
+ * Places every criterion around a target point, applying any proximity rules.
+ * `slack` widens each radius, which the double-check pass uses to allow for
+ * the estimated spawn sitting slightly off the real one.
+ *
+ * On success g_chosen / g_chosenbiome hold the picked positions.
+ */
+static int sf_place(uint64_t seed, int cx, int cz, int slack)
+{
+    int want = (g_npair > 0) ? SF_MAX_CAND : 1;
+    int k;
+
+    for (k = 0; k < g_ncrit; k++)
+    {
+        const Crit *c = &g_crit[k];
+        int ccx = cx, ccz = cz;
+        if (c->dim == DIM_NETHER)
+        {   /* nether criteria are measured in nether coordinates */
+            ccx = (int) floordiv(cx, 8);
+            ccz = (int) floordiv(cz, 8);
+        }
+        g_ncand[k] = sf_collect(c, seed, ccx, ccz, c->radius + slack,
+                                g_cand[k], g_candbiome[k], want);
+        if (g_ncand[k] == 0)
+            return 0;
+    }
+
+    if (g_npair > 0)
+        return sf_solve(0);
+
+    for (k = 0; k < g_ncrit; k++)
+    {
+        g_chosen[k] = g_cand[k][0];
+        g_chosenbiome[k] = g_candbiome[k][0];
+    }
+    return 1;
+}
+
 EMSCRIPTEN_KEEPALIVE
 int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
            int32_t *outSpawn, int maxOut)
@@ -1029,54 +1092,28 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
             cx = 0; cz = 0;
         }
 
-        /* 2c: exact distance filtering around the real target point, each
-         * criterion against its own radius. With no proximity rules one hit
-         * per criterion is enough; with rules we need several candidates so
-         * the solver can try a different instance of the same structure. */
+        /* 2c: exact distance filtering around the target point. */
+        if (!sf_place(seed, cx, cz, 0))
+            continue;
+
+        /* 2d: and again around the real spawn, for the few seeds that got
+         * this far. The reported spawn is the exact one, not an estimate. */
+        if (g_verify)
         {
-            int want = (g_npair > 0) ? SF_MAX_CAND : 1;
-            for (k = 0; k < g_ncrit; k++)
-            {
-                const Crit *c = &g_crit[k];
-                int ccx = cx, ccz = cz;
-                if (c->dim == DIM_NETHER)
-                {
-                    ccx = (int) floordiv(cx, 8);
-                    ccz = (int) floordiv(cz, 8);
-                }
-                g_ncand[k] = sf_collect(c, seed, ccx, ccz, c->radius,
-                                        g_cand[k], g_candbiome[k], want);
-                if (g_ncand[k] == 0)
-                {
-                    pass = 0;
-                    break;
-                }
-            }
-            if (!pass)
+            Pos sp = getSpawn(sf_gen(DIM_OVERWORLD));
+            cx = sp.x;
+            cz = sp.z;
+            if (!sf_place(seed, cx, cz, 0))
                 continue;
+        }
 
-            if (g_npair > 0)
-            {
-                if (!sf_solve(0))
-                    continue;
-            }
-            else
-            {
-                for (k = 0; k < g_ncrit; k++)
-                {
-                    g_chosen[k] = g_cand[k][0];
-                    g_chosenbiome[k] = g_candbiome[k][0];
-                }
-            }
-
-            for (k = 0; k < g_ncrit; k++)
-            {
-                const Crit *c = &g_crit[k];
-                outData[(found * SF_MAX_CRIT + c->slot) * 4 + 0] = g_chosen[k].x;
-                outData[(found * SF_MAX_CRIT + c->slot) * 4 + 1] = g_chosen[k].z;
-                outData[(found * SF_MAX_CRIT + c->slot) * 4 + 2] = g_chosenbiome[k];
-                outData[(found * SF_MAX_CRIT + c->slot) * 4 + 3] = c->dim;
-            }
+        for (k = 0; k < g_ncrit; k++)
+        {
+            const Crit *c = &g_crit[k];
+            outData[(found * SF_MAX_CRIT + c->slot) * 4 + 0] = g_chosen[k].x;
+            outData[(found * SF_MAX_CRIT + c->slot) * 4 + 1] = g_chosen[k].z;
+            outData[(found * SF_MAX_CRIT + c->slot) * 4 + 2] = g_chosenbiome[k];
+            outData[(found * SF_MAX_CRIT + c->slot) * 4 + 3] = c->dim;
         }
 
         outSeeds[found] = seed;

@@ -10,7 +10,7 @@ import { DEFAULT_VERSION, MC_VERSIONS } from './data/versions';
 import { SearchEngine } from './search/engine';
 import { SearchPool, suggestedWorkerCount } from './search/pool';
 import { sortByCloseness } from './search/score';
-import { EDITION, KIND, type CriterionKind, type Edition, type Match, type SearchConfig, type TargetMode } from './search/types';
+import { EDITION, KIND, TARGET, type CriterionKind, type Edition, type Match, type SearchConfig, type TargetMode } from './search/types';
 import { CriterionPicker } from './ui/picker';
 import { initTheme } from './ui/theme';
 import { renderResult, repaintMaps } from './ui/results';
@@ -28,6 +28,8 @@ const targetSel = $<HTMLSelectElement>('target');
 const startSeedInput = $<HTMLInputElement>('start-seed');
 const matchLimitInput = $<HTMLInputElement>('match-limit');
 const threadsInput = $<HTMLInputElement>('threads');
+const verifyInput = $<HTMLInputElement>('verify');
+const verifyHint = $<HTMLElement>('verify-hint');
 const searchBtn = $<HTMLButtonElement>('search');
 const pauseBtn = $<HTMLButtonElement>('pause');
 const stopBtn = $<HTMLButtonElement>('stop');
@@ -121,6 +123,7 @@ function buildConfig(picker: CriterionPicker): SearchConfig {
   return {
     mc: Number(versionSel.value),
     edition: Number(editionSel.value) as Edition,
+    verify: verifyInput.checked && !verifyInput.disabled,
     target: Number(targetSel.value) as TargetMode,
     criteria,
     rules: picker.proximityRules(),
@@ -272,6 +275,21 @@ async function main(): Promise<void> {
   editionSel.addEventListener('change', applyEdition);
   versionSel.addEventListener('change', () => picker.render());
   applyEdition();
+
+  /*
+   * Double-checking only earns its keep on an origin scan, which is the one
+   * target that computes no spawn at all. Both spawn targets already work out
+   * the spawn of every seed they look at, so there is nothing left to add.
+   */
+  const applyTarget = (): void => {
+    const origin = Number(targetSel.value) === TARGET.origin;
+    verifyInput.disabled = !origin;
+    verifyHint.textContent = origin
+      ? 'Scans from (0, 0), which is far faster, then works out the real spawn of each match and requires everything to still be in range from there. Seeds that are not are dropped.'
+      : 'Only applies to an origin search. Both spawn targets already work out the spawn of every seed.';
+  };
+  targetSel.addEventListener('change', applyTarget);
+  applyTarget();
 
   searchBtn.addEventListener('click', () => {
     showError(null);
