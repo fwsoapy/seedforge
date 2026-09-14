@@ -27,6 +27,15 @@
       <section class="panel" id="setup">
         <div class="row">
           <label class="field">
+            <span>Edition</span>
+            <select id="edition">
+              <option value="0" selected>Java</option>
+              <option value="1">Bedrock</option>
+            </select>
+            <span id="edition-hint" class="field-hint" hidden></span>
+          </label>
+
+          <label class="field">
             <span>Minecraft version</span>
             <select id="version"></select>
           </label>
@@ -188,6 +197,12 @@
           <li>
             Versions past the 1.21 Winter Drop come from a patch applied to Cubiomes at build
             time, since upstream has not been updated since November 2024.
+          </li>
+          <li>
+            Bedrock searching covers 1.18 and later, since that is when both editions moved to the
+            same world generator. Fortresses and bastions share one region grid on Bedrock and
+            cannot be told apart by position; villages, outposts, mansions, igloos and ruined
+            portals have extra placement rules that can shift a result by a chunk.
           </li>
           <li>Always verify a seed in-game before committing a world to it.</li>
         </ul>

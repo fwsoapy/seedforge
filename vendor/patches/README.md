@@ -39,6 +39,43 @@ this repository against the pinned submodule commit.
 
 When upstream Cubiomes catches up, drop these patches and bump the submodule.
 
+## Bedrock support
+
+Bedrock places structures with a different generator to Java: a 32-bit
+Mersenne Twister rather than Java's LCG, seeded per region as
+
+```
+r_base = (rx*2570712328 + rz*4048968661 + salt) & 0xFFFFFFFF
+r_seed = (worldSeedLow32 + r_base) & 0xFFFFFFFF
+```
+
+with the in-region offset taken linearly or triangularly depending on the
+structure. Those constants are Mojang's; the MT19937 and the placement code in
+`wasm/bindings.c` are written here from the published specification rather than
+copied, because the project they were documented in
+([MCBE-seedcracker](https://github.com/Alist2930/MCBE-seedcracker)) is licensed
+"for learning and research purposes only" and could not be vendored.
+
+The implementation was cross-checked against that project's reference build as
+an oracle: 64 cases spanning all 16 supported structures, negative region
+coordinates and seeds near 2^32, all agreeing.
+
+Biomes need no such work. Java and Bedrock terrain generation were unified in
+1.18 onto the same noise and climate system, so cubiomes' biome code is correct
+for Bedrock as-is - which is why Bedrock searching is gated to 1.18 and later.
+
+### Known limits
+
+- Nether fortresses and bastions share one region grid on Bedrock, so they
+  cannot be told apart by position alone.
+- Desert pyramids, jungle temples, witch huts and igloos also share a grid;
+  the biome decides which appears, and the biome check handles that.
+- Strongholds, mineshafts, trial chambers, trail ruins, desert wells, geodes
+  and end gateways are not offered on Bedrock - their placement differs and is
+  not implemented here.
+- Villages, outposts, mansions, igloos and ruined portals have extra placement
+  rules on Bedrock that can shift the result by a chunk.
+
 ## Why the loot data is not wired up
 
 Filtering seeds by what is inside a ruined portal's chest needs the chest's

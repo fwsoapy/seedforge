@@ -56,6 +56,7 @@ function search(
   start: bigint,
   count: number,
   rules: number[][] = [],
+  edition = 0,
 ): Found[] {
   // [ kind, type, variant, traitReq, traitMask, areaMin, areaMax, sampleY,
   //   radius, subtype ]
@@ -65,7 +66,7 @@ function search(
   ]);
   M.HEAP32.set(flat, critPtr >> 2);
   M.HEAP32.set(rules.flat(), pairPtr >> 2);
-  const rc = M._sf_configure(mc, target, critPtr, crits.length, pairPtr, rules.length);
+  const rc = M._sf_configure(mc, edition, target, critPtr, crits.length, pairPtr, rules.length);
   expect(rc).toBe(crits.length);
 
   const n = M._sf_run(start, count, seedsPtr, dataPtr, spawnPtr, MAX_OUT);
@@ -245,7 +246,66 @@ describe('biome criteria', () => {
     const flat = [...dd()];
     flat[8] = 500_000;
     M.HEAP32.set(flat, critPtr >> 2);
-    expect(M._sf_configure(MC_1_21_1, 0, critPtr, 1, pairPtr, 0)).toBe(-5);
+    expect(M._sf_configure(MC_1_21_1, 0, 0, critPtr, 1, pairPtr, 0)).toBe(-5);
+  });
+});
+
+describe('bedrock edition', () => {
+  const BEDROCK = 1;
+
+  it('places structures with the Bedrock generator, not the Java one', () => {
+    const crit = [[K_STRUCT, STRUCT.Village, -1, 0, 0, 0, 0, 0, 2_000]];
+    const java = search(MC_26_2, 0, 0, crit, 0n, 300, [], 0);
+    const bedrock = search(MC_26_2, 0, 0, crit, 0n, 300, [], BEDROCK);
+    expect(java.length).toBeGreaterThan(0);
+    expect(bedrock.length).toBeGreaterThan(0);
+    // Same seeds, same criteria, different generator - the positions must not
+    // coincide, otherwise Bedrock is quietly running Java's math.
+    const key = (f: Found) => `${f.seed}:${f.hits[0]!.x},${f.hits[0]!.z}`;
+    expect(bedrock.map(key)).not.toEqual(java.map(key));
+  });
+
+  it('keeps every hit inside the radius', () => {
+    const radius = 1_500;
+    const found = search(
+      MC_26_2, 0, 0,
+      [[K_STRUCT, STRUCT.Village, -1, 0, 0, 0, 0, 0, radius]],
+      0n, 300, [], BEDROCK,
+    );
+    expect(found.length).toBeGreaterThan(0);
+    for (const f of found) {
+      expect(Math.hypot(f.hits[0]!.x, f.hits[0]!.z)).toBeLessThanOrEqual(radius);
+    }
+  });
+
+  it('reports seeds as 32-bit values', () => {
+    const found = search(
+      MC_26_2, 0, 0,
+      [[K_STRUCT, STRUCT.Village, -1, 0, 0, 0, 0, 0, 2_000]],
+      0n, 200, [], BEDROCK,
+    );
+    expect(found.length).toBeGreaterThan(0);
+    for (const f of found) {
+      const asI32 = BigInt.asIntN(32, f.seed);
+      expect(BigInt.asIntN(64, f.seed)).toBe(asI32);
+    }
+  });
+
+  it('refuses structures the Bedrock generator does not place', () => {
+    expect(M._sf_bedrock_supported(STRUCT.Village)).not.toBe(0);
+    expect(M._sf_bedrock_supported(STRUCT.Bastion)).not.toBe(0);
+    // no Bedrock region grid for these
+    expect(M._sf_bedrock_supported(STRUCT.Mineshaft)).toBe(0);
+    expect(M._sf_bedrock_supported(STRUCT.Trial_Chambers)).toBe(0);
+
+    M.HEAP32.set([K_STRUCT, STRUCT.Mineshaft, -1, 0, 0, 0, 0, 0, 500, -1], critPtr >> 2);
+    expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(-10);
+  });
+
+  it('refuses Bedrock before 1.18, when the generators were still separate', () => {
+    M.HEAP32.set([K_STRUCT, STRUCT.Village, -1, 0, 0, 0, 0, 0, 500, -1], critPtr >> 2);
+    expect(M._sf_configure(MC_1_16, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(-9);
+    expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(1);
   });
 });
 
@@ -397,13 +457,13 @@ describe('proximity rules', () => {
     ].flat();
     M.HEAP32.set(flat, critPtr >> 2);
     M.HEAP32.set([0, 1, 100], pairPtr >> 2);
-    expect(M._sf_configure(MC_1_21_1, 0, critPtr, 2, pairPtr, 1)).toBe(-8);
+    expect(M._sf_configure(MC_1_21_1, 0, 0, critPtr, 2, pairPtr, 1)).toBe(-8);
   });
 
   it('rejects a rule pointing at itself', () => {
     M.HEAP32.set([K_STRUCT, STRUCT.Village, -1, 0, 0, 0, 0, 0, 500, -1], critPtr >> 2);
     M.HEAP32.set([0, 0, 100], pairPtr >> 2);
-    expect(M._sf_configure(MC_1_21_1, 0, critPtr, 1, pairPtr, 1)).toBe(-7);
+    expect(M._sf_configure(MC_1_21_1, 0, 0, critPtr, 1, pairPtr, 1)).toBe(-7);
   });
 });
 

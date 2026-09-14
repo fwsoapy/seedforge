@@ -10,7 +10,7 @@ import { DEFAULT_VERSION, MC_VERSIONS } from './data/versions';
 import { SearchEngine } from './search/engine';
 import { SearchPool, suggestedWorkerCount } from './search/pool';
 import { sortByCloseness } from './search/score';
-import { KIND, type CriterionKind, type Match, type SearchConfig, type TargetMode } from './search/types';
+import { EDITION, KIND, type CriterionKind, type Edition, type Match, type SearchConfig, type TargetMode } from './search/types';
 import { CriterionPicker } from './ui/picker';
 import { renderResult } from './ui/results';
 
@@ -20,6 +20,8 @@ const $ = <T extends HTMLElement>(id: string): T => {
   return el as T;
 };
 
+const editionSel = $<HTMLSelectElement>('edition');
+const editionHint = $<HTMLElement>('edition-hint');
 const versionSel = $<HTMLSelectElement>('version');
 const targetSel = $<HTMLSelectElement>('target');
 const startSeedInput = $<HTMLInputElement>('start-seed');
@@ -65,10 +67,11 @@ function showError(message: string | null): void {
 }
 
 function randomSeed(): bigint {
-  // Structure placement only uses the low 48 bits, so that is the space we
-  // draw a random starting point from.
   const buf = new Uint32Array(2);
   crypto.getRandomValues(buf);
+  // A Bedrock world seed is 32 bits; Java structure placement only uses the
+  // low 48, so that is the space each draws its starting point from.
+  if (Number(editionSel.value) === EDITION.bedrock) return BigInt(buf[0]!);
   return ((BigInt(buf[0]!) << 16n) ^ BigInt(buf[1]!)) & ((1n << 48n) - 1n);
 }
 
@@ -95,6 +98,7 @@ function buildConfig(picker: CriterionPicker): SearchConfig {
 
   return {
     mc: Number(versionSel.value),
+    edition: Number(editionSel.value) as Edition,
     target: Number(targetSel.value) as TargetMode,
     criteria,
     rules: picker.proximityRules(),
@@ -202,13 +206,39 @@ async function main(): Promise<void> {
     $<HTMLButtonElement>('add-rule'),
     (kind: CriterionKind, id: number) => {
       const mc = Number(versionSel.value);
-      return kind === KIND.biome ? meta!.supportsBiome(id, mc) : meta!.supports(id, mc);
+      if (kind === KIND.biome) return meta!.supportsBiome(id, mc);
+      if (!meta!.supports(id, mc)) return false;
+      // On Bedrock, only structures the Bedrock generator actually places.
+      if (Number(editionSel.value) === EDITION.bedrock) return meta!.supportsBedrock(id);
+      return true;
     },
     () => showError(null),
   );
   picker.render();
 
+  /** Bedrock only shares a generator with Java from 1.18 onwards. */
+  const MIN_BEDROCK_VERSION = 22;
+
+  const applyEdition = (): void => {
+    const bedrock = Number(editionSel.value) === EDITION.bedrock;
+    let changed = false;
+    for (const opt of versionSel.options) {
+      const tooOld = bedrock && Number(opt.value) < MIN_BEDROCK_VERSION;
+      opt.hidden = tooOld;
+      opt.disabled = tooOld;
+      if (tooOld && opt.selected) changed = true;
+    }
+    if (changed) versionSel.value = String(DEFAULT_VERSION);
+    editionHint.hidden = !bedrock;
+    editionHint.textContent = bedrock
+      ? 'Bedrock seeds are 32-bit. Versions map to the equivalent Java generation.'
+      : '';
+    picker.render();
+  };
+
+  editionSel.addEventListener('change', applyEdition);
   versionSel.addEventListener('change', () => picker.render());
+  applyEdition();
 
   searchBtn.addEventListener('click', () => {
     showError(null);

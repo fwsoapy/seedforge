@@ -64,6 +64,10 @@
 /* Subtype filter: "no constraint". */
 #define SF_ANY (-1)
 
+/* Edition. Bedrock places structures with a different RNG entirely. */
+#define SF_JAVA    0
+#define SF_BEDROCK 1
+
 /* Criterion kinds. */
 #define SF_KIND_STRUCTURE 0
 #define SF_KIND_BIOME     1
@@ -71,6 +75,118 @@
 /* Biome criteria sample a scaled grid. The scale is chosen so the grid stays
  * within this many cells; a radius too large for even 1:256 is rejected. */
 #define SF_BIOME_CELL_BUDGET 262144
+
+/*
+ * Bedrock structure placement.
+ *
+ * Bedrock divides the world into `spacing` x `spacing` chunk regions like Java
+ * does, but derives the region's seed differently and draws the in-region
+ * offset from a 32-bit Mersenne Twister rather than Java's LCG:
+ *
+ *   r_base = (rx*2570712328 + rz*4048968661 + salt) & 0xFFFFFFFF
+ *   r_seed = (worldSeedLow32 + r_base) & 0xFFFFFFFF
+ *
+ * then, seeding MT19937 with r_seed and taking tempered outputs t0..t3 and
+ * range = spacing - separation:
+ *
+ *   linear      ox = t0 % range              oz = t1 % range
+ *   triangular  ox = (t0%range + t1%range)/2 oz = (t2%range + t3%range)/2
+ *
+ * Constants are Mojang's; the implementation here is our own.
+ */
+#define SF_SPREAD_LINEAR     0
+#define SF_SPREAD_TRIANGULAR 1
+
+typedef struct
+{
+    int type;       /* our structure id */
+    uint32_t salt;
+    int spacing;    /* region size, in chunks */
+    int separation; /* minimum gap, in chunks */
+    int spread;     /* SF_SPREAD_* */
+} BedrockConfig;
+
+/*
+ * Note the shared entries. On Bedrock the four "temple" structures occupy one
+ * region grid and the biome decides which of them appears, exactly as the old
+ * Java Feature type did; the biome check downstream disambiguates. Nether
+ * fortresses and bastions likewise share a grid.
+ */
+static const BedrockConfig g_bedrock[] = {
+    { Village,         10387312,  34,  8, SF_SPREAD_TRIANGULAR },
+    { Mansion,         10387319,  80, 20, SF_SPREAD_TRIANGULAR },
+    { End_City,        10387313,  20, 11, SF_SPREAD_TRIANGULAR },
+    { Monument,        10387313,  32,  5, SF_SPREAD_TRIANGULAR },
+    { Ancient_City,    20083232,  24,  8, SF_SPREAD_TRIANGULAR },
+    { Outpost,        165745296,  80, 24, SF_SPREAD_TRIANGULAR },
+    { Treasure,        16842397,   4,  2, SF_SPREAD_TRIANGULAR },
+    { Ocean_Ruin,      14357621,  20,  8, SF_SPREAD_LINEAR },
+    { Shipwreck,      165745295,  24,  4, SF_SPREAD_LINEAR },
+    { Fortress,        30084232,  30,  4, SF_SPREAD_LINEAR },
+    { Bastion,         30084232,  30,  4, SF_SPREAD_LINEAR },
+    { Desert_Pyramid,  14357617,  32,  8, SF_SPREAD_LINEAR },
+    { Igloo,           14357617,  32,  8, SF_SPREAD_LINEAR },
+    { Swamp_Hut,       14357617,  32,  8, SF_SPREAD_LINEAR },
+    { Jungle_Temple,   14357617,  32,  8, SF_SPREAD_LINEAR },
+    { Ruined_Portal,   40552231,  40, 15, SF_SPREAD_LINEAR },
+    { Ruined_Portal_N, 40552231,  25, 10, SF_SPREAD_LINEAR },
+};
+#define SF_BEDROCK_COUNT ((int)(sizeof(g_bedrock) / sizeof(g_bedrock[0])))
+
+static const BedrockConfig *sf_bedrock_config(int type)
+{
+    int i;
+    for (i = 0; i < SF_BEDROCK_COUNT; i++)
+        if (g_bedrock[i].type == type)
+            return &g_bedrock[i];
+    return NULL;
+}
+
+/* --- MT19937, written to the published specification --- */
+
+#define MT_N 624
+#define MT_M 397
+#define MT_MATRIX 0x9908b0dfUL
+#define MT_UPPER 0x80000000UL
+#define MT_LOWER 0x7fffffffUL
+
+typedef struct { uint32_t mt[MT_N]; int idx; } Mt19937;
+
+static void mtInit(Mt19937 *r, uint32_t seed)
+{
+    int i;
+    r->mt[0] = seed;
+    for (i = 1; i < MT_N; i++)
+        r->mt[i] = (uint32_t)(1812433253UL * (r->mt[i-1] ^ (r->mt[i-1] >> 30)) + (uint32_t)i);
+    r->idx = MT_N;
+}
+
+static void mtTwist(Mt19937 *r)
+{
+    int i;
+    for (i = 0; i < MT_N; i++)
+    {
+        uint32_t y = (r->mt[i] & MT_UPPER) | (r->mt[(i+1) % MT_N] & MT_LOWER);
+        uint32_t next = r->mt[(i + MT_M) % MT_N] ^ (y >> 1);
+        if (y & 1)
+            next ^= MT_MATRIX;
+        r->mt[i] = next;
+    }
+    r->idx = 0;
+}
+
+static uint32_t mtNext(Mt19937 *r)
+{
+    uint32_t y;
+    if (r->idx >= MT_N)
+        mtTwist(r);
+    y = r->mt[r->idx++];
+    y ^= (y >> 11);
+    y ^= (y << 7) & 0x9d2c5680UL;
+    y ^= (y << 15) & 0xefc60000UL;
+    y ^= (y >> 18);
+    return y;
+}
 
 typedef struct
 {
@@ -88,6 +204,7 @@ typedef struct
     int slot;       /* index in the caller's criteria array */
     StructureConfig sconf;
     int hasconf;
+    const BedrockConfig *bconf; /* non-NULL when searching Bedrock */
 } Crit;
 
 /*
@@ -121,6 +238,7 @@ static int  g_bcells = 0;
 static int  g_bscale = 16;
 static int  g_bside = 0;        /* grid width/height in cells */
 static int  g_nbiome = 0;       /* how many criteria are biome criteria */
+static int  g_edition = SF_JAVA;
 static int  g_npair = 0;
 static Pair g_pair[SF_MAX_PAIRS];
 
@@ -198,7 +316,7 @@ int sf_mc_newest(void)
  * Returns the number of accepted criteria, or a negative error code.
  */
 EMSCRIPTEN_KEEPALIVE
-int sf_configure(int mc, int target, const int32_t *crit, int ncrit,
+int sf_configure(int mc, int edition, int target, const int32_t *crit, int ncrit,
                  const int32_t *pairs, int npairs)
 {
     int i, d, pass;
@@ -211,7 +329,13 @@ int sf_configure(int mc, int target, const int32_t *crit, int ncrit,
         return -1;
 
     g_mc = mc;
+    g_edition = edition;
     g_target = target;
+    /* Bedrock and Java only share a generator from 1.18, when the two were
+     * unified onto the same noise and climate system. Before that the biome
+     * checks below would be meaningless on Bedrock. */
+    if (edition == SF_BEDROCK && mc < MC_1_18)
+        return -9;
     g_ncrit = ncrit;
     g_nbiome = 0;
     g_npair = npairs;
@@ -248,6 +372,7 @@ int sf_configure(int mc, int target, const int32_t *crit, int ncrit,
             c->subtype = in[9];
             c->slot    = i;
             c->hasconf = 0;
+            c->bconf   = NULL;
 
             if (c->radius < 0)
                 return -2;
@@ -268,6 +393,18 @@ int sf_configure(int mc, int target, const int32_t *crit, int ncrit,
                 {
                     if (mc < MC_1_0)
                         return -3;
+                    if (edition == SF_BEDROCK)
+                        return -10; /* Bedrock stronghold placement differs */
+                }
+                else if (edition == SF_BEDROCK)
+                {
+                    c->bconf = sf_bedrock_config(c->type);
+                    if (!c->bconf)
+                        return -10; /* not placed by the Bedrock generator */
+                    /* Still need the Java config for the biome checks. */
+                    if (!getStructureConfig(c->type, mc, &c->sconf))
+                        return -3;
+                    c->hasconf = 1;
                 }
                 else
                 {
@@ -370,6 +507,45 @@ static inline int sf_within(int px, int pz, int cx, int cz, int r)
     return dx * dx + dz * dz <= (int64_t) r * r;
 }
 
+/*
+ * Bedrock's generation-attempt position for one region. Returns the block
+ * position of the structure's starting chunk.
+ */
+static void sf_bedrock_pos(const BedrockConfig *bc, uint64_t seed,
+                           int regX, int regZ, Pos *pos)
+{
+    Mt19937 r;
+    uint32_t range = (uint32_t)(bc->spacing - bc->separation);
+    uint32_t base, ox, oz;
+
+    base = (uint32_t)((uint32_t)regX * 2570712328u
+                    + (uint32_t)regZ * 4048968661u
+                    + bc->salt);
+    mtInit(&r, (uint32_t)(((uint32_t)seed) + base));
+
+    if (range == 0)
+    {
+        ox = oz = 0;
+    }
+    else if (bc->spread == SF_SPREAD_TRIANGULAR)
+    {
+        uint32_t t0 = mtNext(&r) % range;
+        uint32_t t1 = mtNext(&r) % range;
+        uint32_t t2 = mtNext(&r) % range;
+        uint32_t t3 = mtNext(&r) % range;
+        ox = (t0 + t1) / 2;
+        oz = (t2 + t3) / 2;
+    }
+    else
+    {
+        ox = mtNext(&r) % range;
+        oz = mtNext(&r) % range;
+    }
+
+    pos->x = (int)(((int64_t)regX * bc->spacing + ox) * 16);
+    pos->z = (int)(((int64_t)regZ * bc->spacing + oz) * 16);
+}
+
 /* Collects generation-attempt positions of one structure type within radius r
  * of (cx, cz). Returns the number of hits written (capped at SF_MAX_HITS). */
 static int sf_candidates(const Crit *c, uint64_t seed, int cx, int cz, int r,
@@ -402,7 +578,8 @@ static int sf_candidates(const Crit *c, uint64_t seed, int cx, int cz, int r,
     }
 
     {
-        int rs = c->sconf.regionSize << 4;
+        int spacing = c->bconf ? c->bconf->spacing : c->sconf.regionSize;
+        int rs = spacing << 4;
         int rx0 = (int) floordiv(cx - r, rs);
         int rx1 = (int) floordiv(cx + r, rs);
         int rz0 = (int) floordiv(cz - r, rs);
@@ -414,8 +591,14 @@ static int sf_candidates(const Crit *c, uint64_t seed, int cx, int cz, int r,
         {
             for (rx = rx0; rx <= rx1; rx++)
             {
-                if (!getStructurePos(c->type, g_mc, seed, rx, rz, &p))
+                if (c->bconf)
+                {
+                    sf_bedrock_pos(c->bconf, seed, rx, rz, &p);
+                }
+                else if (!getStructurePos(c->type, g_mc, seed, rx, rz, &p))
+                {
                     continue;
+                }
                 if (!sf_within(p.x, p.z, cx, cz, r))
                     continue;
                 if (n < SF_MAX_HITS)
@@ -726,6 +909,13 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
         int pass = 1;
         int cx = 0, cz = 0;
 
+        /* A Bedrock world seed is the 32-bit value the player typed. Structure
+         * placement uses those 32 bits directly; biome generation uses them
+         * sign-extended to 64, which is also the form reported back so the
+         * number matches what goes into the game. */
+        if (g_edition == SF_BEDROCK)
+            seed = (uint64_t)(int64_t)(int32_t)(uint32_t) seed;
+
         g_scanned++;
 
         /* ---- stage 1 ------------------------------------------------ */
@@ -892,6 +1082,13 @@ int sf_crit_ints(void) { return SF_CRIT_INTS; }
 EMSCRIPTEN_KEEPALIVE
 int sf_pair_ints(void) { return SF_PAIR_INTS; }
 
+/* Whether a structure is placed by the Bedrock generator at all. */
+EMSCRIPTEN_KEEPALIVE
+int sf_bedrock_supported(int type)
+{
+    return sf_bedrock_config(type) != NULL;
+}
+
 EMSCRIPTEN_KEEPALIVE
 int sf_max_pairs(void) { return SF_MAX_PAIRS; }
 
@@ -900,4 +1097,21 @@ EMSCRIPTEN_KEEPALIVE
 int sf_biome_supported(int biomeId, int mc)
 {
     return biomeExists(mc, biomeId) && isOverworld(mc, biomeId);
+}
+
+/* Bedrock generation-attempt position for one region, for tests and probing. */
+EMSCRIPTEN_KEEPALIVE
+int sf_bedrock_probe(int type, uint64_t seed, int regX, int regZ, int32_t *out)
+{
+    const BedrockConfig *bc = sf_bedrock_config(type);
+    Pos p;
+    if (!bc)
+        return 0;
+    sf_bedrock_pos(bc, seed, regX, regZ, &p);
+    out[0] = p.x;
+    out[1] = p.z;
+    out[2] = bc->spacing;
+    out[3] = bc->separation;
+    out[4] = bc->spread;
+    return 1;
 }

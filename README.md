@@ -43,6 +43,9 @@ account and nothing leaves your machine.
   spawn, or the exact world spawn (slowest but accurate).
 - **All three dimensions.** Nether fortresses, bastions and End cities are
   searchable alongside overworld structures.
+- **Java and Bedrock.** Bedrock places structures with a 32-bit Mersenne
+  Twister instead of Java's LCG; both generators are implemented, and the
+  structure list narrows to what Bedrock actually places.
 - **Version aware.** Pick anything from 1.7 to 1.21; the structure list changes
   to match what actually exists in that version.
 - **Multi-threaded.** One Web Worker per logical CPU by default, each scanning
@@ -90,7 +93,11 @@ and it does not store precomputed seeds anywhere.
 
 ## Supported Minecraft versions
 
-Anything from 1.7 up to **26.2**, the current release. Minecraft moved to
+Anything from 1.7 up to **26.2**, the current release, for Java. Bedrock
+searching covers 1.18 and later - that is when the two editions were unified
+onto the same world generator, and before it the biome checks would not mean
+anything. See [`vendor/patches/`](vendor/patches/README.md) for how Bedrock
+placement works and what it cannot do. Minecraft moved to
 year-based version numbers in 2026: 26.1 was the first game drop of that year,
 26.2 "Chaos Cubed" the second.
 
@@ -250,14 +257,13 @@ Always verify a seed in-game before committing a world to it.
 - [x] Biome criteria alongside structures
 - [x] Per-criterion distances and proximity rules between structures
 - [x] Minecraft 26.x support, sulfur caves included
+- [x] Bedrock Edition support (1.18+)
 - [ ] Ruined portal chest loot filtering (blocked: needs exact structure
       altitude to derive the chest's loot seed - see
       [`vendor/patches/README.md`](vendor/patches/README.md))
 - [ ] Cluster/quad searches (e.g. four witch huts in one perimeter)
 - [ ] Shareable search URLs
 - [ ] Export results as JSON/CSV
-- [ ] Bedrock Edition support (blocked on generation differences Cubiomes does
-      not model)
 - [ ] An inline map preview of the surrounding biomes for a chosen seed
 
 ## Contributing

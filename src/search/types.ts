@@ -9,6 +9,10 @@ export const TARGET = {
 
 export type TargetMode = (typeof TARGET)[keyof typeof TARGET];
 
+/** Which edition's world generator to search. */
+export const EDITION = { java: 0, bedrock: 1 } as const;
+export type Edition = (typeof EDITION)[keyof typeof EDITION];
+
 export const KIND = { structure: 0, biome: 1 } as const;
 export type CriterionKind = (typeof KIND)[keyof typeof KIND];
 
@@ -35,6 +39,7 @@ export interface ProximityRule {
 
 export interface SearchConfig {
   mc: number;
+  edition: Edition;
   target: TargetMode;
   criteria: Criterion[];
   /** Extra AND conditions between pairs of criteria. */

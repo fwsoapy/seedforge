@@ -46,7 +46,7 @@ const yieldToLoop = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 async function search(config: SearchConfig, lane: number, lanes: number, gen: number): Promise<void> {
   const eng = await ensureEngine();
   const criteria: Criterion[] = config.criteria;
-  eng.configure(config.mc, config.target, criteria, config.rules);
+  eng.configure(config.mc, config.edition, config.target, criteria, config.rules);
 
   let block = 64;
   let scanned = 0;

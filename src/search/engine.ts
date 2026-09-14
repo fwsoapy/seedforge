@@ -9,14 +9,14 @@
 import createSeedForge from '../wasm/seedforge.js';
 
 import { CRIT_INTS, PAIR_INTS, encodeCriteria, encodeRules } from './criteria';
-import type { Criterion, Match, MatchHit, ProximityRule, TargetMode } from './types';
+import type { Criterion, Edition, Match, MatchHit, ProximityRule, TargetMode } from './types';
 
 interface EmscriptenModule {
   HEAP32: Int32Array;
   HEAPU8: Uint8Array;
   _malloc(bytes: number): number;
   _free(ptr: number): void;
-  _sf_configure(mc: number, target: number, crit: number, ncrit: number, pairs: number, npairs: number): number;
+  _sf_configure(mc: number, edition: number, target: number, crit: number, ncrit: number, pairs: number, npairs: number): number;
   _sf_run(start: bigint, count: number, seeds: number, data: number, spawn: number, maxOut: number): number;
   _sf_supported(type: number, mc: number): number;
   _sf_region_size(type: number, mc: number): number;
@@ -26,6 +26,7 @@ interface EmscriptenModule {
   _sf_pair_ints(): number;
   _sf_max_pairs(): number;
   _sf_biome_supported(biome: number, mc: number): number;
+  _sf_bedrock_supported(type: number): number;
   _sf_stat_scanned(): number;
   _sf_stat_stage2(): number;
   _sf_spawn(seed: bigint, mc: number, exact: number, out: number): number;
@@ -92,8 +93,14 @@ export class SearchEngine {
    * Installs the search criteria. Throws when a structure does not exist in
    * the selected version, or when too many criteria were given.
    */
+  /** Whether the Bedrock generator places this structure at all. */
+  supportsBedrock(structure: number): boolean {
+    return this.m._sf_bedrock_supported(structure) !== 0;
+  }
+
   configure(
     mc: number,
+    edition: Edition,
     target: TargetMode,
     criteria: readonly Criterion[],
     rules: readonly ProximityRule[] = [],
@@ -108,7 +115,7 @@ export class SearchEngine {
     this.m.HEAP32.set(encodeCriteria(criteria), this.critPtr >> 2);
     this.m.HEAP32.set(encodeRules(rules), this.pairPtr >> 2);
     const rc = this.m._sf_configure(
-      mc, target, this.critPtr, criteria.length, this.pairPtr, rules.length,
+      mc, edition, target, this.critPtr, criteria.length, this.pairPtr, rules.length,
     );
     if (rc < 0) {
       const messages: Record<number, string> = {
@@ -120,6 +127,9 @@ export class SearchEngine {
         [-7]: 'A proximity rule refers to a structure that is not selected.',
         [-8]:
           'A proximity rule reaches into the End, which has no coordinate link to the Overworld or the Nether.',
+        [-9]:
+          'Bedrock searching needs 1.18 or later - that is when the two editions were unified onto the same world generator.',
+        [-10]: 'One of the selected structures is not placed by the Bedrock generator.',
       };
       throw new Error(messages[rc] ?? `Search could not be configured (code ${rc}).`);
     }
