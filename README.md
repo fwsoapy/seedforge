@@ -1,6 +1,6 @@
 # SeedForge
 
-**Find Minecraft Java Edition seeds with the structures and biomes you want, near spawn.**
+**Find Minecraft seeds with the structures and biomes you want, near spawn. Java and Bedrock.**
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Live demo](https://img.shields.io/badge/demo-GitHub%20Pages-5ac36a.svg)](https://fwsoapy.github.io/seedforge/)
@@ -16,7 +16,7 @@ account and nothing leaves your machine.
 
 **Live demo:** https://fwsoapy.github.io/seedforge/
 
-![SeedForge searching for a village, a ruined portal and an ancient city within 500 blocks of spawn](docs/screenshot.png)
+![SeedForge searching for a village, a ruined portal and the deep dark near spawn](docs/screenshot.png)
 
 ## Features
 
@@ -38,8 +38,6 @@ account and nothing leaves your machine.
   independent selectors - type, placement and template. Bastion remnants filter
   by all four in-game types, and strongholds by ring. Village size, igloo
   basements and cracked geodes are clearly labelled best-effort filters.
-- **Any distance you want.** Defaults to 500 blocks, adjustable from 16 blocks
-  to a whole continent.
 - **Measure from where it matters.** World origin (fastest), estimated world
   spawn, or the exact world spawn (slowest but accurate).
 - **All three dimensions.** Nether fortresses, bastions and End cities are
@@ -47,8 +45,8 @@ account and nothing leaves your machine.
 - **Java and Bedrock.** Bedrock places structures with a 32-bit Mersenne
   Twister instead of Java's LCG; both generators are implemented, and the
   structure list narrows to what Bedrock actually places.
-- **Version aware.** Pick anything from 1.7 to 1.21; the structure list changes
-  to match what actually exists in that version.
+- **Version aware.** Pick anything from 1.7 to 26.2; the structure and biome
+  lists change to match what actually exists in that version.
 - **Multi-threaded.** One Web Worker per logical CPU by default, each scanning
   its own stripe of the seed space. Set the thread count yourself under
   Advanced, or leave it on 0 for automatic.
@@ -81,16 +79,20 @@ SeedForge does this in two stages, which is where the speed comes from:
    that seed and confirm each position with a real biome check, plus any
    variant constraints you asked for.
 
-Only the low 48 bits of a world seed affect structure placement; the upper 16
-bits only change biome generation. The search therefore walks the 48-bit space,
-which is why returned seeds are positive numbers below 2^48. They are ordinary,
-fully valid Minecraft seeds - paste them straight into the world creation
+On Java, only the low 48 bits of a world seed affect structure placement; the
+upper 16 bits only change biome generation. The search therefore walks the
+48-bit space, which is why returned Java seeds are positive numbers below 2^48.
+A Bedrock world seed is 32 bits, so those come back as 32-bit values. Either
+way they are ordinary seeds: paste them straight into the world creation
 screen.
 
-All of that math comes from [Cubiomes](https://github.com/Cubitect/cubiomes), a
-C reimplementation of Minecraft Java Edition's biome and structure generation,
-compiled to WebAssembly. SeedForge does not reimplement the generation itself,
-and it does not store precomputed seeds anywhere.
+The Java math comes from [Cubiomes](https://github.com/Cubitect/cubiomes), a C
+reimplementation of Minecraft Java Edition's biome and structure generation,
+compiled to WebAssembly, plus a small patch for the versions upstream has not
+caught up with yet. Bedrock structure placement is implemented here directly,
+because Cubiomes does not cover it. Biomes need no second implementation: the
+two editions were unified onto the same generator in 1.18. Nothing is looked up
+in a database of precomputed seeds.
 
 ## Supported Minecraft versions
 
@@ -115,8 +117,6 @@ pinned submodule is never modified. What the patch covers:
 | 26.1 (Tiny Takeover) | No world generation changes. |
 | 26.2 (Chaos Cubed) | Added sulfur caves, which are searchable. |
 
-
-
 | Version | Notable structures added |
 | --- | --- |
 | 1.7 - 1.12 | Villages, temples, witch huts, igloos (1.9+), monuments (1.8+), mansions (1.11+) |
@@ -129,18 +129,18 @@ pinned submodule is never modified. What the patch covers:
 | 1.19 | Ancient cities, trail ruins (1.19.4+) |
 | 1.20 | - |
 | 1.21 | Trial chambers |
+| 26.2 | Sulfur caves |
 
-The dropdown offers 1.7, 1.8, 1.9, 1.10, 1.11, 1.12, 1.13, 1.14, 1.15, 1.16.1,
-1.16.5, 1.17, 1.18, 1.19.2, 1.19.4, 1.20, 1.21.1, 1.21.3 and the 1.21 Winter
-Drop. Which structures appear is decided by Cubiomes itself rather than a
-hardcoded table, so the list is always consistent with the generation code that
+Which structures and biomes appear is decided by the generator itself rather
+than a hardcoded table, so the lists are always consistent with the code that
 actually runs.
 
 ## Tech stack
 
 | Layer | Choice |
 | --- | --- |
-| Generation math | [Cubiomes](https://github.com/Cubitect/cubiomes) (C, MIT), as a git submodule |
+| Java generation | [Cubiomes](https://github.com/Cubitect/cubiomes) (C, MIT), as a git submodule, plus `vendor/patches/` for newer versions |
+| Bedrock placement | Implemented in `wasm/bindings.c` (MT19937 and the region grid) |
 | Bindings | `wasm/bindings.c` - a thin C layer exposing a chunked search |
 | Compilation | Emscripten to WebAssembly |
 | Frontend | TypeScript, no framework |
@@ -189,20 +189,21 @@ npm run preview     # serve dist/
 
 ## Usage
 
-1. Pick your Minecraft version.
-2. Set the maximum distance from spawn (500 blocks by default).
+1. Pick your edition and Minecraft version.
+2. Tick what you want. Each pick gets its own distance box, so a village can be
+   held to 100 blocks while a ruined portal is allowed 500.
 3. Choose what you are measuring from. This is the single biggest lever on
    search speed: working out each seed's spawn point costs around 4ms, which is
    most of the time a search spends. Measuring from **world origin (0, 0)** is
    roughly **50x faster** (about 12,000 seeds/sec per thread versus 250), and
    for "near spawn" searches the two rarely disagree by much. Use
    "exact world spawn" only when you need it to match the game precisely.
-4. Tick the structures you want. Leave a variant dropdown on **Any** when you
-   do not care - the structure still has to exist inside the radius, just
-   without a type constraint.
-5. Hit **Search seeds**. Results stream in as they are found; **Stop** halts
-   the search at any time.
-6. Copy a seed and paste it into the Minecraft world creation screen.
+4. Leave a variant dropdown on **Any** when you do not care. The structure
+   still has to exist inside the radius, just without a type constraint.
+5. Add a proximity rule if you want two picks near each other.
+6. Hit **Search seeds**. Results stream in closest-first as they are found;
+   **Stop** halts the search at any time.
+7. Copy a seed and paste it into the Minecraft world creation screen.
 
 If a search runs for a long time with no hits, the filter combination is
 probably very rare. Widen the radius, drop a structure, or relax a variant
@@ -211,8 +212,9 @@ suspects.
 
 ### Under Advanced
 
-- **Start seed** - where the scan begins. Blank means a random 48-bit start,
-  so two people running the same query get different seeds.
+- **Start seed** - where the scan begins. Blank means a random start (48-bit on
+  Java, 32-bit on Bedrock), so two people running the same query get different
+  seeds.
 - **Stop after N matches** - the search halts once it has that many.
 - **Worker threads** - 0 means automatic, one per logical CPU.
 
