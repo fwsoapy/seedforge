@@ -71,6 +71,8 @@ export interface Match {
 
 export type WorkerIn =
   | { type: 'start'; config: SerializableConfig; lane: number; lanes: number }
+  | { type: 'pause' }
+  | { type: 'resume' }
   | { type: 'stop' };
 
 export type WorkerOut =

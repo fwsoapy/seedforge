@@ -28,6 +28,7 @@ const startSeedInput = $<HTMLInputElement>('start-seed');
 const matchLimitInput = $<HTMLInputElement>('match-limit');
 const threadsInput = $<HTMLInputElement>('threads');
 const searchBtn = $<HTMLButtonElement>('search');
+const pauseBtn = $<HTMLButtonElement>('pause');
 const stopBtn = $<HTMLButtonElement>('stop');
 const clearBtn = $<HTMLButtonElement>('clear');
 const checkBtn = $<HTMLButtonElement>('check');
@@ -58,6 +59,9 @@ const SLOW_HINT_AFTER = 2_000_000;
 let lastScanned = 0;
 let lastMatches = 0;
 let stopRequested = false;
+/** Time spent paused, so it does not drag the seeds/sec figure down. */
+let pausedMs = 0;
+let pausedAt = 0;
 /** Every match found in the current search, kept so they can be re-sorted. */
 let results: Match[] = [];
 /** Drives the stats readout independently of how often workers report. */
@@ -114,7 +118,10 @@ function buildConfig(picker: CriterionPicker): SearchConfig {
 function refreshStats(): void {
   statScanned.textContent = nf.format(lastScanned);
   statMatches.textContent = nf.format(lastMatches);
-  const secs = (performance.now() - startedAt) / 1000;
+  // Paused time is excluded, otherwise the rate decays while nothing is
+  // actually being scanned.
+  const held = pausedAt > 0 ? performance.now() - pausedAt : 0;
+  const secs = (performance.now() - startedAt - pausedMs - held) / 1000;
   statRate.textContent = secs > 0 ? nf.format(Math.round(lastScanned / secs)) : '0';
   hintEl.hidden = !(lastMatches === 0 && lastScanned > SLOW_HINT_AFTER);
 }
@@ -134,6 +141,8 @@ function stopStatsTimer(): void {
 function setRunning(running: boolean): void {
   searchBtn.disabled = running;
   stopBtn.disabled = !running;
+  pauseBtn.disabled = !running;
+  if (!running) pauseBtn.textContent = 'Pause';
   searchBtn.textContent = running ? 'Searching...' : 'Search seeds';
   // The animated bar is the "still working" signal - it has to stop when the
   // search does, otherwise a finished search looks like a hung one.
@@ -268,6 +277,8 @@ async function main(): Promise<void> {
     lastScanned = 0;
     lastMatches = 0;
     stopRequested = false;
+    pausedMs = 0;
+    pausedAt = 0;
     results = [];
 
     // 0 (or blank) means "pick for me".
@@ -288,6 +299,10 @@ async function main(): Promise<void> {
           lastMatches = matchCount;
         },
         onDone: () => {
+          if (pausedAt > 0) {
+            pausedMs += performance.now() - pausedAt;
+            pausedAt = 0;
+          }
           stopStatsTimer();
           refreshStats();
           setRunning(false);
@@ -365,9 +380,36 @@ async function main(): Promise<void> {
     if (ev.key === 'Enter') checkBtn.click();
   });
 
+  pauseBtn.addEventListener('click', () => {
+    if (!pool?.isRunning) return;
+    if (pool.isPaused) {
+      pool.resume();
+      pausedMs += performance.now() - pausedAt;
+      pausedAt = 0;
+      pauseBtn.textContent = 'Pause';
+      statusEl.textContent = '';
+      statusEl.className = 'status';
+      barEl.hidden = false;
+      startStatsTimer();
+    } else {
+      pool.pause();
+      pausedAt = performance.now();
+      pauseBtn.textContent = 'Resume';
+      stopStatsTimer();
+      refreshStats();
+      barEl.hidden = true;
+      statusEl.textContent = `Paused after ${nf.format(lastScanned)} seeds. Resume to carry on from here.`;
+      statusEl.className = 'status';
+    }
+  });
+
   stopBtn.addEventListener('click', () => {
     stopRequested = true;
     stopStatsTimer();
+    if (pausedAt > 0) {
+      pausedMs += performance.now() - pausedAt;
+      pausedAt = 0;
+    }
     pool?.stop();
   });
 

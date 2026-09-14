@@ -30,6 +30,7 @@ const STRIPE = 1n << 24n;
 
 let engine: SearchEngine | null = null;
 let running = false;
+let paused = false;
 let generation = 0;
 
 function post(msg: WorkerOut): void {
@@ -42,6 +43,8 @@ async function ensureEngine(): Promise<SearchEngine> {
 }
 
 const yieldToLoop = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+/** While paused the loop idles here, which also lets messages through. */
+const idle = (): Promise<void> => new Promise((r) => setTimeout(r, 80));
 
 async function search(config: SearchConfig, lane: number, lanes: number, gen: number): Promise<void> {
   const eng = await ensureEngine();
@@ -58,6 +61,13 @@ async function search(config: SearchConfig, lane: number, lanes: number, gen: nu
   const stride = BigInt(lanes);
 
   while (running && gen === generation) {
+    // Pausing keeps the cursor, the block size and the counters exactly where
+    // they are, so resuming carries on rather than starting over.
+    if (paused) {
+      await idle();
+      continue;
+    }
+
     if (config.seedLimit > 0n && BigInt(scanned) * stride >= config.seedLimit) break;
 
     const remaining = STRIPE - cursor;
@@ -108,13 +118,23 @@ self.onmessage = (ev: MessageEvent<WorkerIn>) => {
   const msg = ev.data;
   if (msg.type === 'stop') {
     running = false;
+    paused = false;
     generation++;
+    return;
+  }
+  if (msg.type === 'pause') {
+    paused = true;
+    return;
+  }
+  if (msg.type === 'resume') {
+    paused = false;
     return;
   }
   if (msg.type === 'start') {
     generation++;
     const gen = generation;
     running = true;
+    paused = false;
     search(msg.config, msg.lane, msg.lanes, gen).catch((err: unknown) => {
       running = false;
       post({ type: 'error', message: err instanceof Error ? err.message : String(err) });

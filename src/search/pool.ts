@@ -24,6 +24,7 @@ export class SearchPool {
   private finished = 0;
   private matchCount = 0;
   private active = false;
+  private paused = false;
   private matchLimit = 0;
 
   constructor(
@@ -39,6 +40,10 @@ export class SearchPool {
     return this.active;
   }
 
+  get isPaused(): boolean {
+    return this.paused;
+  }
+
   get scanned(): number {
     return this.scannedPerLane.reduce((a, b) => a + b, 0);
   }
@@ -46,6 +51,7 @@ export class SearchPool {
   start(config: SearchConfig): void {
     this.stop();
     this.active = true;
+    this.paused = false;
     this.finished = 0;
     this.matchCount = 0;
     this.matchLimit = config.matchLimit;
@@ -70,12 +76,26 @@ export class SearchPool {
     }
   }
 
+  /** Suspends every lane without losing its place. */
+  pause(): void {
+    if (!this.active || this.paused) return;
+    this.paused = true;
+    for (const w of this.workers) w.postMessage({ type: 'pause' });
+  }
+
+  resume(): void {
+    if (!this.active || !this.paused) return;
+    this.paused = false;
+    for (const w of this.workers) w.postMessage({ type: 'resume' });
+  }
+
   stop(): void {
     for (const w of this.workers) {
       w.postMessage({ type: 'stop' });
       w.terminate();
     }
     this.workers = [];
+    this.paused = false;
     if (this.active) {
       this.active = false;
       this.events.onDone();
