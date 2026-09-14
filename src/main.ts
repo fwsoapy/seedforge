@@ -123,7 +123,7 @@ function buildConfig(picker: CriterionPicker): SearchConfig {
   return {
     mc: Number(versionSel.value),
     edition: Number(editionSel.value) as Edition,
-    verify: verifyInput.checked && !verifyInput.disabled,
+    verify: verifyInput.checked,
     target: Number(targetSel.value) as TargetMode,
     criteria,
     rules: picker.proximityRules(),
@@ -278,18 +278,32 @@ async function main(): Promise<void> {
 
   /*
    * Double-checking only earns its keep on an origin scan, which is the one
-   * target that computes no spawn at all. Both spawn targets already work out
-   * the spawn of every seed they look at, so there is nothing left to add.
+   * target that computes no spawn at all. Rather than disable the box on the
+   * other targets, where it just looks broken, the two controls are kept in
+   * step: ticking it switches to the origin, and moving to a spawn target
+   * unticks it. Either way a click always does something visible.
    */
-  const applyTarget = (): void => {
-    const origin = Number(targetSel.value) === TARGET.origin;
-    verifyInput.disabled = !origin;
-    verifyHint.textContent = origin
-      ? 'Scans from (0, 0), which is far faster, then works out the real spawn of each match and requires everything to still be in range from there. Seeds that are not are dropped.'
-      : 'Only applies to an origin search. Both spawn targets already work out the spawn of every seed.';
+  const ORIGIN_HINT =
+    'Scans from (0, 0), which is far faster, then works out the real spawn of each match and requires everything to still be in range from there. Seeds that are not are dropped.';
+
+  const paintVerifyHint = (): void => {
+    verifyHint.textContent =
+      Number(targetSel.value) === TARGET.origin
+        ? ORIGIN_HINT
+        : `Ticking this switches the target to the world origin. ${ORIGIN_HINT}`;
   };
-  targetSel.addEventListener('change', applyTarget);
-  applyTarget();
+
+  targetSel.addEventListener('change', () => {
+    if (Number(targetSel.value) !== TARGET.origin) verifyInput.checked = false;
+    paintVerifyHint();
+  });
+
+  verifyInput.addEventListener('change', () => {
+    if (verifyInput.checked) targetSel.value = String(TARGET.origin);
+    paintVerifyHint();
+  });
+
+  paintVerifyHint();
 
   searchBtn.addEventListener('click', () => {
     showError(null);
