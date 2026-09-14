@@ -5,3 +5,4 @@ src/wasm/
 .DS_Store
 .emscripten_cache/
 package-lock.json.bak
+build/

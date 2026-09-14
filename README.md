@@ -87,14 +87,28 @@ and it does not store precomputed seeds anywhere.
 
 ## Supported Minecraft versions
 
-SeedForge supports every version Cubiomes does, which currently tops out at the
-1.21 Winter Drop.
+Anything from 1.7 up to **26.2**, the current release. Minecraft moved to
+year-based version numbers in 2026: 26.1 was the first game drop of that year,
+26.2 "Chaos Cubed" the second.
 
-Minecraft moved to year-based version numbers in 2026 (26.1 was the first game
-drop of that year, 26.2 "Chaos Cubed" the second). Upstream Cubiomes has not
-been updated since November 2024 and does not cover them yet. Rather than label
-a version we cannot actually generate, the selector stops where the generation
-code stops - see [ROADMAP](#roadmap).
+Upstream Cubiomes stopped at the 1.21 Winter Drop in November 2024, so the
+versions past it are built from a patch kept in
+[`vendor/patches/`](vendor/patches/README.md) and applied at build time. The
+pinned submodule is never modified. What the patch covers:
+
+| Version | World generation |
+| --- | --- |
+| 1.21.4 (Garden Awakens) | Pale garden. This is what Cubiomes called `MC_1_21_WD`. |
+| 1.21.5 (Spring to Life) | Pale garden expansion, mansions in pale gardens. Uses its own biome tree. |
+| 1.21.6 - 1.21.11 | No world generation changes. |
+| 26.1 (Tiny Takeover) | No world generation changes. |
+| 26.2 (Chaos Cubed) | Added sulfur caves - **see below**. |
+
+**26.2 caveat:** sulfur caves are not modelled. The biome tree that places them
+has not been published anywhere, so no open-source generator can produce them
+yet, this one included. Everything else on 26.2 generates correctly; deep
+underground biomes come out the same as 26.1. The app says so under the version
+selector when you pick it, rather than letting you find out later.
 
 
 | Version | Notable structures added |
@@ -233,7 +247,8 @@ Always verify a seed in-game before committing a world to it.
 
 - [x] Biome criteria alongside structures
 - [x] Per-criterion distances and proximity rules between structures
-- [ ] Minecraft 26.x support (needs a Cubiomes build that generates them)
+- [x] Minecraft 26.x support
+- [ ] Sulfur caves (blocked on the 26.2 biome tree being published)
 - [ ] Ruined portal chest loot filtering
 - [ ] Cluster/quad searches (e.g. four witch huts in one perimeter)
 - [ ] Shareable search URLs

@@ -1,6 +1,10 @@
 /**
  * Minecraft version constants, mirroring the `MCVersion` enum in
- * cubiomes/biomes.h. The numeric ids are what the WASM core expects.
+ * cubiomes/biomes.h as extended by vendor/patches/versions.patch. The numeric
+ * ids are what the WASM core expects.
+ *
+ * Minecraft moved to year-based version numbers in 2026: 26.1 was the first
+ * game drop of that year, 26.2 the second.
  */
 
 export interface McVersion {
@@ -8,10 +12,20 @@ export interface McVersion {
   readonly id: number;
   /** Label shown in the version dropdown. */
   readonly label: string;
+  /** Caveat shown under the selector when this version is chosen. */
+  readonly note?: string;
 }
 
+const SULFUR_NOTE =
+  'Sulfur caves, added in 26.2, are not modelled - the biome tree for them has not been ' +
+  'published. Everything else generates correctly; deep underground biomes match 26.1.';
+
 export const MC_VERSIONS: readonly McVersion[] = [
-  { id: 28, label: '1.21 (Winter Drop)' },
+  { id: 39, label: '26.2 (Chaos Cubed)', note: SULFUR_NOTE },
+  { id: 36, label: '26.1 (Tiny Takeover)' },
+  { id: 35, label: '1.21.11' },
+  { id: 29, label: '1.21.5 (Spring to Life)' },
+  { id: 28, label: '1.21.4 (Garden Awakens)' },
   { id: 27, label: '1.21.3' },
   { id: 26, label: '1.21.1' },
   { id: 25, label: '1.20' },
@@ -32,8 +46,13 @@ export const MC_VERSIONS: readonly McVersion[] = [
   { id: 10, label: '1.7' },
 ] as const;
 
-export const DEFAULT_VERSION = 26; // 1.21.1
+/** 26.2 is the current release, so it is what the app opens on. */
+export const DEFAULT_VERSION = 39;
 
 export function versionLabel(id: number): string {
   return MC_VERSIONS.find((v) => v.id === id)?.label ?? `MC #${id}`;
+}
+
+export function versionNote(id: number): string | null {
+  return MC_VERSIONS.find((v) => v.id === id)?.note ?? null;
 }

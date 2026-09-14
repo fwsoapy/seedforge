@@ -7,15 +7,27 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CUBIOMES="$ROOT/vendor/cubiomes"
+UPSTREAM="$ROOT/vendor/cubiomes"
+PATCHES="$ROOT/vendor/patches"
+BUILD="$ROOT/build/cubiomes"
+CUBIOMES="$BUILD"
 OUT="$ROOT/src/wasm"
 
-if [ ! -f "$CUBIOMES/finders.c" ]; then
+if [ ! -f "$UPSTREAM/finders.c" ]; then
   echo "vendor/cubiomes is empty - run: git submodule update --init --recursive" >&2
   exit 1
 fi
 
 mkdir -p "$OUT"
+
+# Upstream cubiomes stops at the 1.21 Winter Drop. Build from a patched copy so
+# the pinned submodule itself is never modified - see vendor/patches/README.md.
+rm -rf "$BUILD"
+mkdir -p "$(dirname "$BUILD")"
+cp -r "$UPSTREAM" "$BUILD"
+cp "$PATCHES/btree21_5.h" "$BUILD/tables/"
+patch -s -p1 -d "$BUILD" < "$PATCHES/versions.patch"
+echo "applied vendor/patches/versions.patch"
 
 SRC=(
   "$ROOT/wasm/bindings.c"

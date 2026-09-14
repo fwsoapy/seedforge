@@ -13,6 +13,11 @@ const MC_1_18 = 22;
 const MC_1_19_2 = 23;
 const MC_1_20 = 25;
 const MC_1_21_1 = 26;
+const MC_1_21_3 = 27;
+const MC_1_21_4 = 28;
+const MC_1_21_5 = 29;
+const MC_26_1 = 36;
+const MC_26_2 = 39;
 
 const MAX_OUT = 64;
 const CRIT_INTS = 10;
@@ -241,6 +246,45 @@ describe('biome criteria', () => {
     flat[8] = 500_000;
     M.HEAP32.set(flat, critPtr >> 2);
     expect(M._sf_configure(MC_1_21_1, 0, critPtr, 1, pairPtr, 0)).toBe(-5);
+  });
+});
+
+describe('version range', () => {
+  const PALE_GARDEN = 186;
+  const SULFUR_CAVES = 187;
+
+  it('reaches 26.2, the current release', () => {
+    expect(M._sf_mc_newest()).toBe(MC_26_2);
+  });
+
+  it('gates the biomes each version actually has', () => {
+    expect(M._sf_biome_supported(PALE_GARDEN, MC_1_21_3)).toBe(0);
+    expect(M._sf_biome_supported(PALE_GARDEN, MC_1_21_4)).not.toBe(0);
+    expect(M._sf_biome_supported(SULFUR_CAVES, 35)).toBe(0);
+    expect(M._sf_biome_supported(SULFUR_CAVES, MC_26_2)).not.toBe(0);
+  });
+
+  it('uses a different biome tree from 1.21.5 onwards', () => {
+    // Spring to Life expanded the pale garden, which means a different biome
+    // tree. The same query over the same seeds has to give different answers,
+    // otherwise the new versions are just relabelled old ones.
+    const paleGarden = (mc: number) =>
+      search(mc, 0, 0, [[K_BIOME, 0, PALE_GARDEN, 0, 0, 0, 0, 80, 400]], 0n, 900)
+        .map((f) => f.seed.toString());
+
+    const before = paleGarden(MC_1_21_4);
+    const after = paleGarden(MC_1_21_5);
+    expect(before.length).toBeGreaterThan(0);
+    expect(after.length).toBeGreaterThan(0);
+    expect(after).not.toEqual(before);
+  });
+
+  it('treats 26.1 and 26.2 as the 1.21.5 generation they are', () => {
+    const paleGarden = (mc: number) =>
+      search(mc, 0, 0, [[K_BIOME, 0, PALE_GARDEN, 0, 0, 0, 0, 80, 400]], 0n, 900)
+        .map((f) => f.seed.toString());
+    expect(paleGarden(MC_26_1)).toEqual(paleGarden(MC_1_21_5));
+    expect(paleGarden(MC_26_2)).toEqual(paleGarden(MC_1_21_5));
   });
 });
 
