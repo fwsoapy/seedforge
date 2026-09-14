@@ -53,8 +53,10 @@ account and nothing leaves your machine.
 - **Streaming results, closest first.** Matches appear as they are found and
   the list re-sorts so the tightest seed is always on top, ranked by the
   furthest structure in each. Live counters, and a stop button that works.
-- **Preview map.** Every result gets a map with compass directions, a ring per
-  criterion radius, and hover details for each structure.
+- **Preview map.** Every result gets a map with compass directions and hover
+  details. It scales to the structures rather than the search radius, so a
+  find inside 300 blocks is drawn at 300 blocks even if you searched 1000.
+  Enlarge it for a full-size view with scroll to zoom and drag to pan.
 - **Private by design.** 100% client-side. No API keys, no analytics, no data
   collection.
 
