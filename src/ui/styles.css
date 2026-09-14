@@ -76,11 +76,18 @@ main {
 
 .panel h2 { margin: 0 0 4px; font-size: 16px; }
 
+/*
+ * Settings row. Columns are capped rather than stretched to 1fr, because with
+ * only two fields left they otherwise sprawl across the whole panel. Aligned
+ * to the start so a field carrying a hint underneath does not drag the others
+ * out of line.
+ */
 .row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  align-items: end;
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 260px));
+  justify-content: start;
+  align-items: start;
+  gap: 16px 22px;
 }
 
 .field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
@@ -97,7 +104,7 @@ input, select {
 }
 input:focus, select:focus { outline: 2px solid var(--accent-dark); outline-offset: 1px; }
 
-.field-hint { font-size: 11px; color: var(--muted); line-height: 1.4; }
+.field-hint { font-size: 11px; color: #6f7c8b; line-height: 1.4; }
 
 .with-unit { position: relative; display: block; }
 .with-unit .unit {
