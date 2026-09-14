@@ -148,6 +148,25 @@ export class CriterionPicker {
     return this.allowJavaOnly ? groups : groups.filter((g) => !g.javaOnly);
   }
 
+  /**
+   * Puts the selection back into the order the two grids are listed in.
+   *
+   * The map's insertion order is what everything downstream reads: the cards
+   * under "Selected", the order criteria reach the engine, and so the order
+   * hits appear on a result. Left as click order, ticking the same boxes in a
+   * different sequence gave a differently ordered list for the same search.
+   * Following the grid instead means the list always reads the same way, and
+   * matches the order the boxes appear in above it.
+   */
+  private sortSelection(): void {
+    const order = this.entries.map(keyOf);
+    const sorted = [...this.selected.entries()].sort(
+      (a, b) => order.indexOf(a[0]) - order.indexOf(b[0]),
+    );
+    this.selected.clear();
+    for (const [k, sel] of sorted) this.selected.set(k, sel);
+  }
+
   /** Re-renders for the current version, dropping now-invalid selections. */
   render(): void {
     this.entries = [
@@ -171,6 +190,8 @@ export class CriterionPicker {
         if (!live.has(gk)) delete sel.variants[gk];
       }
     }
+
+    this.sortSelection();
 
     this.structureRoot.replaceChildren(
       ...this.entries.filter((e) => e.kind === KIND.structure).map((e) => this.chip(e)),

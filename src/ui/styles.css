@@ -344,14 +344,22 @@ input:focus, select:focus { outline: 2px solid var(--accent-dark); outline-offse
 
 /* --- selected list -------------------------------------------------- */
 
+ /*
+  * Cards vary in height: a village carries three dropdowns, an ancient city
+  * none. Left to sit at the top of their row, the short ones leave a ragged
+  * hole under them the height of the tallest card in that row. Stretching
+  * them to share the row height turns that into even cards instead.
+  */
 .selected-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  align-items: start;
+  align-items: stretch;
   gap: 10px;
 }
 
 .sel-row {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--accent-dark);
   border-radius: 9px;
   background: var(--selected-bg);
