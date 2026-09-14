@@ -1,0 +1,1318 @@
+{
+  "ancient_city": {
+    "pools": [
+      {
+        "entries": [
+          {
+            "item": "enchanted_golden_apple",
+            "max_count": 2,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "music_disc_otherside",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "compass",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "sculk_catalyst",
+            "max_count": 2,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "diamond_hoe",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "lead",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "diamond_horse_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "leather",
+            "max_count": 5,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "music_disc_13",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "music_disc_cat",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "diamond_leggings",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "book",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 3
+          },
+          {
+            "item": "sculk",
+            "max_count": 10,
+            "min_count": 4,
+            "weight": 3
+          },
+          {
+            "item": "sculk_sensor",
+            "max_count": 3,
+            "min_count": 1,
+            "weight": 3
+          },
+          {
+            "item": "candle",
+            "max_count": 4,
+            "min_count": 1,
+            "weight": 3
+          },
+          {
+            "item": "amethyst_shard",
+            "max_count": 15,
+            "min_count": 1,
+            "weight": 3
+          },
+          {
+            "item": "experience_bottle",
+            "max_count": 3,
+            "min_count": 1,
+            "weight": 3
+          },
+          {
+            "item": "glow_berries",
+            "max_count": 15,
+            "min_count": 1,
+            "weight": 3
+          },
+          {
+            "item": "iron_leggings",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 3
+          },
+          {
+            "item": "echo_shard",
+            "max_count": 3,
+            "min_count": 1,
+            "weight": 4
+          },
+          {
+            "item": "disc_fragment_5",
+            "max_count": 3,
+            "min_count": 1,
+            "weight": 4
+          },
+          {
+            "item": "potion",
+            "max_count": 3,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "book",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "book",
+            "max_count": 10,
+            "min_count": 3,
+            "weight": 5
+          },
+          {
+            "item": "bone",
+            "max_count": 15,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "soul_torch",
+            "max_count": 15,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "coal",
+            "max_count": 15,
+            "min_count": 6,
+            "weight": 7
+          }
+        ],
+        "max_rolls": 10.0,
+        "min_rolls": 5.0
+      },
+      {
+        "entries": [
+          {
+            "item": "empty",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 75
+          },
+          {
+            "item": "ward_armor_trim_smithing_template",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 4
+          },
+          {
+            "item": "silence_armor_trim_smithing_template",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          }
+        ],
+        "max_rolls": 1.0,
+        "min_rolls": 1.0
+      }
+    ]
+  },
+  "bastion_treasure": {
+    "pools": [
+      {
+        "entries": [
+          {
+            "item": "netherite_ingot",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "ancient_debris",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 10
+          },
+          {
+            "item": "netherite_scrap",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 8
+          },
+          {
+            "item": "ancient_debris",
+            "max_count": 2,
+            "min_count": 2,
+            "weight": 4
+          },
+          {
+            "item": "diamond_sword",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 6
+          },
+          {
+            "item": "diamond_spear",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 6
+          },
+          {
+            "item": "diamond_chestplate",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 6
+          },
+          {
+            "item": "diamond_helmet",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 6
+          },
+          {
+            "item": "diamond_leggings",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 6
+          },
+          {
+            "item": "diamond_boots",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 6
+          },
+          {
+            "item": "diamond_sword",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 6
+          },
+          {
+            "item": "diamond_spear",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 6
+          },
+          {
+            "item": "diamond_chestplate",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "diamond_helmet",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "diamond_boots",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "diamond_leggings",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "diamond",
+            "max_count": 6,
+            "min_count": 2,
+            "weight": 5
+          },
+          {
+            "item": "enchanted_golden_apple",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          }
+        ],
+        "max_rolls": 3.0,
+        "min_rolls": 3.0
+      },
+      {
+        "entries": [
+          {
+            "item": "spectral_arrow",
+            "max_count": 25,
+            "min_count": 12,
+            "weight": 1
+          },
+          {
+            "item": "gold_block",
+            "max_count": 5,
+            "min_count": 2,
+            "weight": 1
+          },
+          {
+            "item": "iron_block",
+            "max_count": 5,
+            "min_count": 2,
+            "weight": 1
+          },
+          {
+            "item": "gold_ingot",
+            "max_count": 9,
+            "min_count": 3,
+            "weight": 1
+          },
+          {
+            "item": "iron_ingot",
+            "max_count": 9,
+            "min_count": 3,
+            "weight": 1
+          },
+          {
+            "item": "crying_obsidian",
+            "max_count": 5,
+            "min_count": 3,
+            "weight": 1
+          },
+          {
+            "item": "quartz",
+            "max_count": 23,
+            "min_count": 8,
+            "weight": 1
+          },
+          {
+            "item": "gilded_blackstone",
+            "max_count": 15,
+            "min_count": 5,
+            "weight": 1
+          },
+          {
+            "item": "magma_cream",
+            "max_count": 8,
+            "min_count": 3,
+            "weight": 1
+          }
+        ],
+        "max_rolls": 4.0,
+        "min_rolls": 3.0
+      },
+      {
+        "entries": [
+          {
+            "item": "empty",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 11
+          },
+          {
+            "item": "snout_armor_trim_smithing_template",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          }
+        ],
+        "max_rolls": 1.0,
+        "min_rolls": 1.0
+      },
+      {
+        "entries": [
+          {
+            "item": "netherite_upgrade_smithing_template",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          }
+        ],
+        "max_rolls": 1.0,
+        "min_rolls": 1.0
+      }
+    ]
+  },
+  "buried_treasure": {
+    "pools": [
+      {
+        "entries": [
+          {
+            "item": "heart_of_the_sea",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          }
+        ],
+        "max_rolls": 1.0,
+        "min_rolls": 1.0
+      },
+      {
+        "entries": [
+          {
+            "item": "iron_ingot",
+            "max_count": 4,
+            "min_count": 1,
+            "weight": 20
+          },
+          {
+            "item": "gold_ingot",
+            "max_count": 4,
+            "min_count": 1,
+            "weight": 10
+          },
+          {
+            "item": "tnt",
+            "max_count": 2,
+            "min_count": 1,
+            "weight": 5
+          }
+        ],
+        "max_rolls": 8.0,
+        "min_rolls": 5.0
+      },
+      {
+        "entries": [
+          {
+            "item": "emerald",
+            "max_count": 8,
+            "min_count": 4,
+            "weight": 5
+          },
+          {
+            "item": "diamond",
+            "max_count": 2,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "prismarine_crystals",
+            "max_count": 5,
+            "min_count": 1,
+            "weight": 5
+          }
+        ],
+        "max_rolls": 3.0,
+        "min_rolls": 1.0
+      },
+      {
+        "entries": [
+          {
+            "item": "leather_chestplate",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "iron_sword",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "iron_spear",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          }
+        ],
+        "max_rolls": 1.0,
+        "min_rolls": 0.0
+      },
+      {
+        "entries": [
+          {
+            "item": "cooked_cod",
+            "max_count": 4,
+            "min_count": 2,
+            "weight": 1
+          },
+          {
+            "item": "cooked_salmon",
+            "max_count": 4,
+            "min_count": 2,
+            "weight": 1
+          }
+        ],
+        "max_rolls": 2.0,
+        "min_rolls": 2.0
+      },
+      {
+        "entries": [
+          {
+            "item": "potion",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          }
+        ],
+        "max_rolls": 2.0,
+        "min_rolls": 0.0
+      },
+      {
+        "entries": [
+          {
+            "item": "empty",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 148
+          },
+          {
+            "item": "copper_nautilus_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 20
+          },
+          {
+            "item": "iron_nautilus_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 10
+          },
+          {
+            "item": "golden_nautilus_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "diamond_nautilus_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          }
+        ],
+        "max_rolls": 1.0,
+        "min_rolls": 1.0
+      }
+    ]
+  },
+  "desert_pyramid": {
+    "pools": [
+      {
+        "entries": [
+          {
+            "item": "diamond",
+            "max_count": 3,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "iron_ingot",
+            "max_count": 5,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "gold_ingot",
+            "max_count": 7,
+            "min_count": 2,
+            "weight": 15
+          },
+          {
+            "item": "emerald",
+            "max_count": 3,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "bone",
+            "max_count": 6,
+            "min_count": 4,
+            "weight": 25
+          },
+          {
+            "item": "spider_eye",
+            "max_count": 3,
+            "min_count": 1,
+            "weight": 25
+          },
+          {
+            "item": "rotten_flesh",
+            "max_count": 7,
+            "min_count": 3,
+            "weight": 25
+          },
+          {
+            "item": "leather",
+            "max_count": 5,
+            "min_count": 1,
+            "weight": 20
+          },
+          {
+            "item": "copper_horse_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "iron_horse_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "golden_horse_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 10
+          },
+          {
+            "item": "diamond_horse_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "book",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 20
+          },
+          {
+            "item": "golden_apple",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 20
+          },
+          {
+            "item": "enchanted_golden_apple",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "empty",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 15
+          }
+        ],
+        "max_rolls": 4.0,
+        "min_rolls": 2.0
+      },
+      {
+        "entries": [
+          {
+            "item": "bone",
+            "max_count": 8,
+            "min_count": 1,
+            "weight": 10
+          },
+          {
+            "item": "gunpowder",
+            "max_count": 8,
+            "min_count": 1,
+            "weight": 10
+          },
+          {
+            "item": "rotten_flesh",
+            "max_count": 8,
+            "min_count": 1,
+            "weight": 10
+          },
+          {
+            "item": "string",
+            "max_count": 8,
+            "min_count": 1,
+            "weight": 10
+          },
+          {
+            "item": "sand",
+            "max_count": 8,
+            "min_count": 1,
+            "weight": 10
+          }
+        ],
+        "max_rolls": 4.0,
+        "min_rolls": 4.0
+      },
+      {
+        "entries": [
+          {
+            "item": "empty",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 6
+          },
+          {
+            "item": "dune_armor_trim_smithing_template",
+            "max_count": 2,
+            "min_count": 2,
+            "weight": 1
+          }
+        ],
+        "max_rolls": 1.0,
+        "min_rolls": 1.0
+      }
+    ]
+  },
+  "jungle_temple": {
+    "pools": [
+      {
+        "entries": [
+          {
+            "item": "diamond",
+            "max_count": 3,
+            "min_count": 1,
+            "weight": 3
+          },
+          {
+            "item": "iron_ingot",
+            "max_count": 5,
+            "min_count": 1,
+            "weight": 10
+          },
+          {
+            "item": "gold_ingot",
+            "max_count": 7,
+            "min_count": 2,
+            "weight": 15
+          },
+          {
+            "item": "bamboo",
+            "max_count": 3,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "emerald",
+            "max_count": 3,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "bone",
+            "max_count": 6,
+            "min_count": 4,
+            "weight": 20
+          },
+          {
+            "item": "rotten_flesh",
+            "max_count": 7,
+            "min_count": 3,
+            "weight": 16
+          },
+          {
+            "item": "leather",
+            "max_count": 5,
+            "min_count": 1,
+            "weight": 3
+          },
+          {
+            "item": "copper_horse_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "iron_horse_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "golden_horse_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "diamond_horse_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "book",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          }
+        ],
+        "max_rolls": 6.0,
+        "min_rolls": 2.0
+      },
+      {
+        "entries": [
+          {
+            "item": "empty",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "wild_armor_trim_smithing_template",
+            "max_count": 2,
+            "min_count": 2,
+            "weight": 1
+          }
+        ],
+        "max_rolls": 1.0,
+        "min_rolls": 1.0
+      }
+    ]
+  },
+  "ruined_portal": {
+    "pools": [
+      {
+        "entries": [
+          {
+            "item": "obsidian",
+            "max_count": 2,
+            "min_count": 1,
+            "weight": 40
+          },
+          {
+            "item": "flint",
+            "max_count": 4,
+            "min_count": 1,
+            "weight": 40
+          },
+          {
+            "item": "iron_nugget",
+            "max_count": 18,
+            "min_count": 9,
+            "weight": 40
+          },
+          {
+            "item": "flint_and_steel",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 40
+          },
+          {
+            "item": "fire_charge",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 40
+          },
+          {
+            "item": "golden_apple",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "gold_nugget",
+            "max_count": 24,
+            "min_count": 4,
+            "weight": 15
+          },
+          {
+            "item": "golden_sword",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "golden_axe",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "golden_hoe",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "golden_shovel",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "golden_pickaxe",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "golden_boots",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "golden_chestplate",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "golden_helmet",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "golden_leggings",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 15
+          },
+          {
+            "item": "glistering_melon_slice",
+            "max_count": 12,
+            "min_count": 4,
+            "weight": 5
+          },
+          {
+            "item": "golden_horse_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "light_weighted_pressure_plate",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "golden_carrot",
+            "max_count": 12,
+            "min_count": 4,
+            "weight": 5
+          },
+          {
+            "item": "clock",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "gold_ingot",
+            "max_count": 8,
+            "min_count": 2,
+            "weight": 5
+          },
+          {
+            "item": "bell",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "enchanted_golden_apple",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "gold_block",
+            "max_count": 2,
+            "min_count": 1,
+            "weight": 1
+          }
+        ],
+        "max_rolls": 8.0,
+        "min_rolls": 4.0
+      },
+      {
+        "entries": [
+          {
+            "item": "empty",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "lodestone",
+            "max_count": 2,
+            "min_count": 1,
+            "weight": 2
+          }
+        ],
+        "max_rolls": 1.0,
+        "min_rolls": 1.0
+      }
+    ]
+  },
+  "shipwreck_treasure": {
+    "pools": [
+      {
+        "entries": [
+          {
+            "item": "iron_ingot",
+            "max_count": 5,
+            "min_count": 1,
+            "weight": 90
+          },
+          {
+            "item": "gold_ingot",
+            "max_count": 5,
+            "min_count": 1,
+            "weight": 10
+          },
+          {
+            "item": "emerald",
+            "max_count": 5,
+            "min_count": 1,
+            "weight": 40
+          },
+          {
+            "item": "diamond",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "experience_bottle",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 5
+          }
+        ],
+        "max_rolls": 6.0,
+        "min_rolls": 3.0
+      },
+      {
+        "entries": [
+          {
+            "item": "iron_nugget",
+            "max_count": 10,
+            "min_count": 1,
+            "weight": 50
+          },
+          {
+            "item": "gold_nugget",
+            "max_count": 10,
+            "min_count": 1,
+            "weight": 10
+          },
+          {
+            "item": "lapis_lazuli",
+            "max_count": 10,
+            "min_count": 1,
+            "weight": 20
+          }
+        ],
+        "max_rolls": 5.0,
+        "min_rolls": 2.0
+      },
+      {
+        "entries": [
+          {
+            "item": "empty",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "coast_armor_trim_smithing_template",
+            "max_count": 2,
+            "min_count": 2,
+            "weight": 1
+          }
+        ],
+        "max_rolls": 1.0,
+        "min_rolls": 1.0
+      },
+      {
+        "entries": [
+          {
+            "item": "empty",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 148
+          },
+          {
+            "item": "copper_nautilus_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 20
+          },
+          {
+            "item": "iron_nautilus_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 10
+          },
+          {
+            "item": "golden_nautilus_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 5
+          },
+          {
+            "item": "diamond_nautilus_armor",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          }
+        ],
+        "max_rolls": 1.0,
+        "min_rolls": 1.0
+      }
+    ]
+  },
+  "trail_ruins": {
+    "pools": [
+      {
+        "entries": [
+          {
+            "item": "emerald",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "wheat",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "wooden_hoe",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "clay",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "brick",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "yellow_dye",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "blue_dye",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "light_blue_dye",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "white_dye",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "orange_dye",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "red_candle",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "green_candle",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "purple_candle",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "brown_candle",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 2
+          },
+          {
+            "item": "magenta_stained_glass_pane",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "pink_stained_glass_pane",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "blue_stained_glass_pane",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "light_blue_stained_glass_pane",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "red_stained_glass_pane",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "yellow_stained_glass_pane",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "purple_stained_glass_pane",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "spruce_hanging_sign",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "oak_hanging_sign",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "gold_nugget",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "coal",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "wheat_seeds",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "beetroot_seeds",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "dead_bush",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "flower_pot",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "string",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          },
+          {
+            "item": "lead",
+            "max_count": 1,
+            "min_count": 1,
+            "weight": 1
+          }
+        ],
+        "max_rolls": 1.0,
+        "min_rolls": 1.0
+      }
+    ]
+  }
+}
