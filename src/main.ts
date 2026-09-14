@@ -81,14 +81,30 @@ function randomSeed(): bigint {
   return ((BigInt(buf[0]!) << 16n) ^ BigInt(buf[1]!)) & ((1n << 48n) - 1n);
 }
 
+/**
+ * Turns typed text into a world seed.
+ *
+ * Bedrock world seeds are 32 bits, and the generator only ever looks at the
+ * low 32, so anything wider would quietly describe a different world than the
+ * one typed. Reject it instead of truncating.
+ */
+function parseSeed(raw: string, edition: Edition, label: string): bigint {
+  let seed: bigint;
+  try {
+    seed = BigInt(raw);
+  } catch {
+    throw new Error(`${label} must be a whole number.`);
+  }
+  if (edition === EDITION.bedrock && (seed < -(2n ** 31n) || seed > 2n ** 32n - 1n)) {
+    throw new Error('A Bedrock seed is 32 bits, so it has to be between -2147483648 and 4294967295.');
+  }
+  return BigInt.asUintN(64, seed);
+}
+
 function parseStartSeed(): bigint {
   const raw = startSeedInput.value.trim();
   if (raw === '') return randomSeed();
-  try {
-    return BigInt.asUintN(64, BigInt(raw));
-  } catch {
-    throw new Error('Start seed must be a whole number.');
-  }
+  return parseSeed(raw, Number(editionSel.value) as Edition, 'Start seed');
 }
 
 function buildConfig(picker: CriterionPicker): SearchConfig {
@@ -254,6 +270,10 @@ async function main(): Promise<void> {
 
   searchBtn.addEventListener('click', () => {
     showError(null);
+    // Belt and braces: the button is disabled while a search runs, but never
+    // leave an old pool's workers alive if that ever stops holding. Done
+    // before the UI is reset, since stop() runs the old pool's onDone.
+    pool?.stop();
     let config: SearchConfig;
     try {
       config = buildConfig(picker);
@@ -329,15 +349,9 @@ async function main(): Promise<void> {
       return;
     }
     let seed: bigint;
-    try {
-      seed = BigInt.asUintN(64, BigInt(raw));
-    } catch {
-      showError('That seed is not a whole number.');
-      return;
-    }
-
     let config: SearchConfig;
     try {
+      seed = parseSeed(raw, Number(editionSel.value) as Edition, 'A seed');
       config = buildConfig(picker);
     } catch (err) {
       showError(err instanceof Error ? err.message : String(err));

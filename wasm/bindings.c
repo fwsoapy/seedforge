@@ -228,7 +228,6 @@ static SurfaceNoise g_ensn;
 static int       g_ensnready;
 
 static int  g_mc = MC_NEWEST;
-static int  g_radius = 500;
 static int  g_target = SF_TARGET_ORIGIN;
 static int  g_ncrit = 0;
 static Crit g_crit[SF_MAX_CRIT];
@@ -321,7 +320,6 @@ int sf_configure(int mc, int edition, int target, const int32_t *crit, int ncrit
 {
     int i, d, pass;
     int n = 0;
-    int maxRadius = 0;
 
     if (ncrit < 0 || ncrit > SF_MAX_CRIT)
         return -1;
@@ -376,8 +374,6 @@ int sf_configure(int mc, int edition, int target, const int32_t *crit, int ncrit
 
             if (c->radius < 0)
                 return -2;
-            if (c->radius > maxRadius)
-                maxRadius = c->radius;
 
             if (kind == SF_KIND_BIOME)
             {
@@ -460,8 +456,6 @@ int sf_configure(int mc, int edition, int target, const int32_t *crit, int ncrit
         if (g_pair[i].maxDist < 0)
             return -2;
     }
-
-    g_radius = maxRadius;
 
     if (g_needow)
         g_genready[DIM_OVERWORLD + 1] = 1;

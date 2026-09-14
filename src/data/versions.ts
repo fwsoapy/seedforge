@@ -42,7 +42,3 @@ export const MC_VERSIONS: readonly McVersion[] = [
 
 /** 26.2 is the current release, so it is what the app opens on. */
 export const DEFAULT_VERSION = 39;
-
-export function versionLabel(id: number): string {
-  return MC_VERSIONS.find((v) => v.id === id)?.label ?? `MC #${id}`;
-}

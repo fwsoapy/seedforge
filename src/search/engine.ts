@@ -62,11 +62,6 @@ export class SearchEngine {
     );
   }
 
-  /** Newest Minecraft version cubiomes knows about. */
-  newestVersion(): number {
-    return this.m._sf_mc_newest();
-  }
-
   /** Whether a structure type exists in a given Minecraft version. */
   supports(structure: number, mc: number): boolean {
     return this.m._sf_supported(structure, mc) !== 0;
@@ -77,27 +72,15 @@ export class SearchEngine {
     return this.m._sf_biome_supported(biome, mc) !== 0;
   }
 
-  /** Region grid size, in chunks, for a structure type. */
-  regionSize(structure: number, mc: number): number {
-    return this.m._sf_region_size(structure, mc);
-  }
-
-  /** World spawn of a single seed, estimated or exact. */
-  spawn(seed: bigint, mc: number, exact: boolean): { x: number; z: number } {
-    const ptr = this.spawnPtr;
-    this.m._sf_spawn(BigInt.asUintN(64, seed), mc, exact ? 1 : 0, ptr);
-    return { x: this.m.HEAP32[ptr >> 2]!, z: this.m.HEAP32[(ptr >> 2) + 1]! };
+  /** Whether the Bedrock generator places this structure at all. */
+  supportsBedrock(structure: number): boolean {
+    return this.m._sf_bedrock_supported(structure) !== 0;
   }
 
   /**
    * Installs the search criteria. Throws when a structure does not exist in
    * the selected version, or when too many criteria were given.
    */
-  /** Whether the Bedrock generator places this structure at all. */
-  supportsBedrock(structure: number): boolean {
-    return this.m._sf_bedrock_supported(structure) !== 0;
-  }
-
   configure(
     mc: number,
     edition: Edition,
