@@ -36,7 +36,7 @@ a { color: var(--accent); }
 
 .brand { display: flex; align-items: center; gap: 14px; }
 
-.brand-mark { width: 36px; height: 36px; flex: none; display: block; }
+.brand-mark { width: 40px; height: 40px; flex: none; display: block; }
 
 .topbar h1 { font-size: 20px; margin: 0; letter-spacing: 0.2px; }
 .tagline { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
