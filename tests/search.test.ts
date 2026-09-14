@@ -293,13 +293,45 @@ describe('bedrock edition', () => {
 
   it('refuses structures the Bedrock generator does not place', () => {
     expect(M._sf_bedrock_supported(STRUCT.Village)).not.toBe(0);
-    expect(M._sf_bedrock_supported(STRUCT.Bastion)).not.toBe(0);
+    expect(M._sf_bedrock_supported(STRUCT.Nether_Complex)).not.toBe(0);
     // no Bedrock region grid for these
     expect(M._sf_bedrock_supported(STRUCT.Mineshaft)).toBe(0);
     expect(M._sf_bedrock_supported(STRUCT.Trial_Chambers)).toBe(0);
 
     M.HEAP32.set([K_STRUCT, STRUCT.Mineshaft, -1, 0, 0, 0, 0, 0, 500, -1], critPtr >> 2);
     expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(-10);
+  });
+
+  // Fortresses and bastions share one region grid on Bedrock and only one of
+  // the pair is built per site. Offering them as two structures put both at
+  // the same coordinates in every single seed, which is not a world that
+  // exists. They are one criterion on Bedrock now.
+  it('does not offer fortress and bastion separately on Bedrock', () => {
+    expect(M._sf_bedrock_supported(STRUCT.Fortress)).toBe(0);
+    expect(M._sf_bedrock_supported(STRUCT.Bastion)).toBe(0);
+
+    for (const type of [STRUCT.Fortress, STRUCT.Bastion]) {
+      M.HEAP32.set([K_STRUCT, type, -1, 0, 0, 0, 0, 0, 2_000, -1], critPtr >> 2);
+      expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(-10);
+    }
+  });
+
+  it('keeps the combined nether criterion off Java', () => {
+    M.HEAP32.set([K_STRUCT, STRUCT.Nether_Complex, -1, 0, 0, 0, 0, 0, 2_000, -1], critPtr >> 2);
+    expect(M._sf_configure(MC_26_2, 0, 0, critPtr, 1, pairPtr, 0)).toBe(-12);
+    expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(1);
+  });
+
+  it('puts the nether complex on the grid the reference implementation uses', () => {
+    // MCBE-seedcracker: "nether_complexes", salt 30084232, spacing 30,
+    // separation 4, linear spread.
+    const out = M._malloc(5 * 4);
+    expect(M._sf_bedrock_probe(STRUCT.Nether_Complex, 12345n, 0, 0, out)).not.toBe(0);
+    const [, , spacing, separation, spread] = [...M.HEAP32.subarray(out >> 2, (out >> 2) + 5)];
+    expect(spacing).toBe(30);
+    expect(separation).toBe(4);
+    expect(spread).toBe(0); // linear
+    M._free(out);
   });
 
   it('refuses variant filters that come from Java RNG', () => {
@@ -314,9 +346,11 @@ describe('bedrock edition', () => {
     // the same filter is fine on Java
     expect(M._sf_configure(MC_26_2, 0, 0, critPtr, 1, pairPtr, 0)).toBe(1);
 
-    // bastion type comes from getVariant too
-    const bastionType = [K_STRUCT, STRUCT.Bastion, -1, 0, 0, 0, 0, 0, 500, /* subtype */ 2];
-    M.HEAP32.set(bastionType, critPtr >> 2);
+    // igloo basements come from getVariant too
+    const iglooBasement = [
+      K_STRUCT, STRUCT.Igloo, -1, /* traitReq */ 16, /* traitMask */ 16, 0, 0, 0, 500, -1,
+    ];
+    M.HEAP32.set(iglooBasement, critPtr >> 2);
     expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(-11);
   });
 

@@ -6,13 +6,15 @@
  * workers so the UI never blocks.
  */
 
+import { STRUCTURES } from './data/structures';
 import { DEFAULT_VERSION, MC_VERSIONS } from './data/versions';
 import { SearchEngine } from './search/engine';
 import { SearchPool, suggestedWorkerCount } from './search/pool';
 import { sortByCloseness } from './search/score';
 import { EDITION, KIND, type CriterionKind, type Edition, type Match, type SearchConfig, type TargetMode } from './search/types';
 import { CriterionPicker } from './ui/picker';
-import { renderResult } from './ui/results';
+import { initTheme } from './ui/theme';
+import { renderResult, repaintMaps } from './ui/results';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -33,6 +35,7 @@ const stopBtn = $<HTMLButtonElement>('stop');
 const clearBtn = $<HTMLButtonElement>('clear');
 const checkBtn = $<HTMLButtonElement>('check');
 const checkSeedInput = $<HTMLInputElement>('check-seed');
+const themeBtn = $<HTMLButtonElement>('theme');
 const errorEl = $<HTMLParagraphElement>('error');
 const progressPanel = $<HTMLElement>('progress-panel');
 const resultsEl = $<HTMLElement>('results');
@@ -198,6 +201,11 @@ function addMatches(matches: Match[]): void {
 }
 
 async function main(): Promise<void> {
+  // Before anything slow, so the control works while the engine is loading.
+  // Canvas pixels are not restyled by CSS, so the maps already on the page
+  // have to be repainted when the palette changes.
+  initTheme(themeBtn, $<HTMLElement>('theme-icon'), $<HTMLElement>('theme-label'), repaintMaps);
+
   for (const v of MC_VERSIONS) {
     const o = document.createElement('option');
     o.value = String(v.id);
@@ -235,8 +243,13 @@ async function main(): Promise<void> {
       const mc = Number(versionSel.value);
       if (kind === KIND.biome) return meta!.supportsBiome(id, mc);
       if (!meta!.supports(id, mc)) return false;
+      const bedrock = Number(editionSel.value) === EDITION.bedrock;
+      // A couple of entries only make sense on one edition: the combined
+      // nether complex exists because Bedrock cannot tell a fortress from a
+      // bastion, which Java can.
+      if (STRUCTURES.find((d) => d.id === id)?.bedrockOnly && !bedrock) return false;
       // On Bedrock, only structures the Bedrock generator actually places.
-      if (Number(editionSel.value) === EDITION.bedrock) return meta!.supportsBedrock(id);
+      if (bedrock) return meta!.supportsBedrock(id);
       return true;
     },
     () => showError(null),

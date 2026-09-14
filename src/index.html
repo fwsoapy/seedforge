@@ -10,7 +10,8 @@
     />
     <link rel="canonical" href="https://fwsoapy.github.io/seedforge/" />
     <meta name="author" content="fwsoapy" />
-    <meta name="theme-color" content="#10141a" />
+    <meta name="theme-color" content="#f4f6f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#10141a" media="(prefers-color-scheme: dark)" />
     <meta
       name="keywords"
       content="minecraft seed finder, minecraft seed map, seed search, structure finder, biome finder, village finder, stronghold finder, bastion finder, ancient city finder, ruined portal finder, java edition, bedrock edition, cubiomes, webassembly"
@@ -76,6 +77,14 @@
         ]
       }
     </script>
+    <script>
+      /* Applies a stored theme before first paint so the other palette never
+         flashes. The key matches src/ui/theme.ts. */
+      try {
+        var t = localStorage.getItem('seedforge:theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) { /* storage blocked: fall back to following the OS */ }
+    </script>
   </head>
   <body>
     <header class="topbar">
@@ -86,7 +95,13 @@
           <p class="tagline">Minecraft seeds with the structures and biomes you want, near spawn.</p>
         </div>
       </div>
-      <a class="ghost-link" href="https://github.com/fwsoapy/seedforge" target="_blank" rel="noreferrer noopener">GitHub</a>
+      <div class="topbar-actions">
+        <button id="theme" class="icon-btn" type="button" aria-label="Switch theme">
+          <span id="theme-icon" aria-hidden="true">o</span>
+          <span id="theme-label" class="icon-btn-text">System</span>
+        </button>
+        <a class="ghost-link" href="https://github.com/fwsoapy/seedforge" target="_blank" rel="noreferrer noopener">GitHub</a>
+      </div>
     </header>
 
     <main id="app">

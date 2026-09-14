@@ -6,12 +6,63 @@ import { distance } from '../search/criteria';
 import { targetOf as targetFor } from '../search/score';
 import { KIND, type Match, type MatchHit } from '../search/types';
 
-const DIM_COLORS: Record<number, string> = {
-  0: '#5ac36a',
-  [-1]: '#e08a72',
-  1: '#c9a4e8',
-};
-const BIOME_COLOR = '#63b3ed';
+/**
+ * Canvas colours, read off the root element so the map follows the theme.
+ *
+ * Resolved once per draw rather than per shape: getComputedStyle forces a
+ * style recalc, and the map redraws on every pan and zoom frame.
+ */
+interface Palette {
+  readonly bg: string;
+  readonly axis: string;
+  readonly grid: string;
+  readonly ring: string;
+  readonly ringLabel: string;
+  readonly centre: string;
+  readonly label: string;
+  readonly scale: string;
+  readonly biome: string;
+  readonly dim: Record<number, string>;
+}
+
+/**
+ * Card maps, so a theme change can repaint them.
+ *
+ * Canvas pixels are not styled by CSS: a map drawn under one palette keeps
+ * those colours until something redraws it. Cards are replaced wholesale on a
+ * new search, so entries are dropped once their canvas leaves the document
+ * rather than tracked by the caller.
+ */
+const cardMaps = new Set<{ canvas: HTMLCanvasElement; paint: () => void }>();
+
+/** Repaints every card map that is still on the page. */
+export function repaintMaps(): void {
+  for (const entry of [...cardMaps]) {
+    if (!entry.canvas.isConnected) cardMaps.delete(entry);
+    else entry.paint();
+  }
+}
+
+function palette(): Palette {
+  const cs = getComputedStyle(document.documentElement);
+  const v = (name: string, fallback: string): string => cs.getPropertyValue(name).trim() || fallback;
+  return {
+    bg: v('--map-bg', '#0a0e13'),
+    axis: v('--map-axis', '#1a2029'),
+    grid: v('--map-grid', '#1e2732'),
+    ring: v('--map-ring', '#2f3d4d'),
+    ringLabel: v('--map-ring-label', '#4b5765'),
+    centre: v('--text', '#e6edf3'),
+    label: v('--muted', '#93a1b1'),
+    scale: v('--faint', '#6f7c8b'),
+    biome: v('--biome-dot', '#63b3ed'),
+    dim: {
+      0: v('--accent', '#5ac36a'),
+      [-1]: v('--nether', '#e08a72'),
+      1: v('--end', '#c9a4e8'),
+    },
+  };
+}
 
 
 
@@ -86,8 +137,9 @@ function drawMap(
   const scale = ((size / 2 - margin) / extent) * view.zoom;
   const cx = size / 2 + view.panX;
   const cy = size / 2 + view.panY;
+  const pal = palette();
 
-  ctx.fillStyle = '#0a0e13';
+  ctx.fillStyle = pal.bg;
   ctx.fillRect(0, 0, size, size);
 
   ctx.save();
@@ -96,7 +148,7 @@ function drawMap(
   ctx.clip();
 
   // axes
-  ctx.strokeStyle = '#1a2029';
+  ctx.strokeStyle = pal.axis;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(cx, 0);
@@ -109,7 +161,7 @@ function drawMap(
   // limits you set are still visible when they are relevant.
   const inner = [...new Set(radii)].filter((r) => r < extent).sort((a, b) => a - b);
   for (const r of inner) {
-    ctx.strokeStyle = '#1e2732';
+    ctx.strokeStyle = pal.grid;
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 4]);
     ctx.beginPath();
@@ -118,14 +170,14 @@ function drawMap(
     ctx.setLineDash([]);
   }
 
-  ctx.strokeStyle = '#2f3d4d';
+  ctx.strokeStyle = pal.ring;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.arc(cx, cy, extent * scale, 0, Math.PI * 2);
   ctx.stroke();
 
   // ring labels on the north axis
-  ctx.fillStyle = '#4b5765';
+  ctx.fillStyle = pal.ringLabel;
   ctx.font = '10px system-ui, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
@@ -134,7 +186,7 @@ function drawMap(
   }
 
   // target point
-  ctx.fillStyle = '#e6edf3';
+  ctx.fillStyle = pal.centre;
   ctx.beginPath();
   ctx.arc(cx, cy, size < 400 ? 3.5 : 5, 0, Math.PI * 2);
   ctx.fill();
@@ -145,18 +197,18 @@ function drawMap(
     const t = targetFor(hit, m);
     const px = cx + (hit.x - t.x) * scale;
     const pz = cy + (hit.z - t.z) * scale;
-    const color = hit.kind === KIND.biome ? BIOME_COLOR : (DIM_COLORS[hit.dim] ?? '#5ac36a');
+    const color = hit.kind === KIND.biome ? pal.biome : (pal.dim[hit.dim] ?? pal.dim[0]!);
 
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(px, pz, dot, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#0a0e13';
+    ctx.strokeStyle = pal.bg;
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
     if (size >= 400) {
-      ctx.fillStyle = '#93a1b1';
+      ctx.fillStyle = pal.label;
       ctx.font = '11px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
@@ -169,7 +221,7 @@ function drawMap(
   ctx.restore();
 
   // Compass sits outside the clipped area so panning never moves it.
-  ctx.fillStyle = '#6f7c8b';
+  ctx.fillStyle = pal.scale;
   ctx.font = '600 11px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -267,54 +319,106 @@ function openLargeMap(m: Match, radii: readonly number[]): void {
 
   attachTooltip(canvas, tip, m, () => plotted);
 
-  canvas.addEventListener('wheel', (ev) => {
-    ev.preventDefault();
-    const factor = ev.deltaY < 0 ? 1.15 : 1 / 1.15;
-    const next = Math.min(20, Math.max(0.5, view.zoom * factor));
-    // Zoom about the cursor rather than the centre, so what you point at
-    // stays where it is.
+  /** Scales about a viewport point, so whatever is under it stays put. */
+  const zoomAbout = (next: number, clientX: number, clientY: number): void => {
+    const clamped = Math.min(20, Math.max(0.5, next));
     const rect = canvas.getBoundingClientRect();
-    const mx = ev.clientX - rect.left - (view.size / 2 + view.panX);
-    const my = ev.clientY - rect.top - (view.size / 2 + view.panY);
-    const ratio = next / view.zoom;
+    const mx = clientX - rect.left - (view.size / 2 + view.panX);
+    const my = clientY - rect.top - (view.size / 2 + view.panY);
+    const ratio = clamped / view.zoom;
     view.panX -= mx * (ratio - 1);
     view.panY -= my * (ratio - 1);
-    view.zoom = next;
+    view.zoom = clamped;
+  };
+
+  canvas.addEventListener('wheel', (ev) => {
+    ev.preventDefault();
+    zoomAbout(view.zoom * (ev.deltaY < 0 ? 1.15 : 1 / 1.15), ev.clientX, ev.clientY);
     redraw();
   }, { passive: false });
 
-  let dragging = false;
+  /**
+   * Pan and pinch.
+   *
+   * Pointer events cover mouse, touch and pen with one set of handlers. Live
+   * pointers are tracked by id so a second finger turns the drag into a pinch
+   * and lifting it goes back to a one-finger pan without a jump.
+   */
+  const active = new Map<number, { x: number; y: number }>();
   let lastX = 0;
   let lastY = 0;
-  canvas.addEventListener('mousedown', (ev) => {
-    dragging = true;
-    lastX = ev.clientX;
-    lastY = ev.clientY;
+  let pinchDist = 0;
+
+  const centreOf = (): { x: number; y: number } => {
+    let sx = 0;
+    let sy = 0;
+    for (const p of active.values()) {
+      sx += p.x;
+      sy += p.y;
+    }
+    return { x: sx / active.size, y: sy / active.size };
+  };
+
+  const spreadOf = (): number => {
+    const [a, b] = [...active.values()];
+    if (!a || !b) return 0;
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
+
+  canvas.addEventListener('pointerdown', (ev) => {
+    active.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    canvas.setPointerCapture(ev.pointerId);
+    const c = centreOf();
+    lastX = c.x;
+    lastY = c.y;
+    pinchDist = spreadOf();
     canvas.classList.add('grabbing');
   });
-  // Dragging is tracked on the window so the pan keeps up when the pointer
-  // leaves the canvas, which means these have to be torn down on close.
-  const onMove = (ev: MouseEvent): void => {
-    if (!dragging) return;
-    view.panX += ev.clientX - lastX;
-    view.panY += ev.clientY - lastY;
-    lastX = ev.clientX;
-    lastY = ev.clientY;
+
+  const onMove = (ev: PointerEvent): void => {
+    if (!active.has(ev.pointerId)) return;
+    active.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+
+    const c = centreOf();
+    if (active.size >= 2) {
+      const spread = spreadOf();
+      if (pinchDist > 0 && spread > 0) zoomAbout(view.zoom * (spread / pinchDist), c.x, c.y);
+      pinchDist = spread;
+    }
+    view.panX += c.x - lastX;
+    view.panY += c.y - lastY;
+    lastX = c.x;
+    lastY = c.y;
     redraw();
   };
-  const onUp = (): void => {
-    dragging = false;
-    canvas.classList.remove('grabbing');
+
+  const onUp = (ev: PointerEvent): void => {
+    if (!active.delete(ev.pointerId)) return;
+    if (active.size > 0) {
+      // Re-anchor on the remaining pointers so the view does not jump.
+      const c = centreOf();
+      lastX = c.x;
+      lastY = c.y;
+      pinchDist = spreadOf();
+    } else {
+      pinchDist = 0;
+      canvas.classList.remove('grabbing');
+    }
   };
-  window.addEventListener('mousemove', onMove);
-  window.addEventListener('mouseup', onUp);
+
+  // Tracked on the window so a pan keeps up when the pointer leaves the
+  // canvas, which means these have to be torn down on close.
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
 
   const shut = (): void => {
     overlay.remove();
     window.removeEventListener('keydown', onKey);
     window.removeEventListener('resize', redraw);
-    window.removeEventListener('mousemove', onMove);
-    window.removeEventListener('mouseup', onUp);
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
   };
   function onKey(ev: KeyboardEvent): void {
     if (ev.key === 'Escape') shut();
@@ -327,7 +431,7 @@ function openLargeMap(m: Match, radii: readonly number[]): void {
     redraw();
   });
   close.addEventListener('click', shut);
-  overlay.addEventListener('mousedown', (ev) => {
+  overlay.addEventListener('pointerdown', (ev) => {
     if (ev.target === overlay) shut();
   });
   window.addEventListener('keydown', onKey);
@@ -395,7 +499,12 @@ export function renderResult(m: Match, radii: readonly number[]): HTMLElement {
 
   const canvas = document.createElement('canvas');
   canvas.className = 'map';
-  const plotted = drawMap(canvas, m, radii, { size: MAP_SIZE, zoom: 1, panX: 0, panY: 0 });
+  let plotted: Plotted[] = [];
+  const paint = (): void => {
+    plotted = drawMap(canvas, m, radii, { size: MAP_SIZE, zoom: 1, panX: 0, panY: 0 });
+  };
+  paint();
+  cardMaps.add({ canvas, paint });
 
   const tip = document.createElement('div');
   tip.className = 'map-tip';

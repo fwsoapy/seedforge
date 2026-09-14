@@ -31,6 +31,14 @@
 
 /* Pseudo structure types that live outside cubiomes' StructureType enum. */
 #define SF_STRONGHOLD   (FEATURE_NUM + 0)
+/*
+ * Bedrock only. Nether fortresses and bastions share one region grid, and
+ * exactly one of the two stands in each occupied region; Java decides which
+ * with an LCG roll we cannot reproduce for Bedrock. So on Bedrock the pair is
+ * offered as a single criterion that locates the complex without claiming
+ * which kind it is.
+ */
+#define SF_NETHER_COMPLEX (FEATURE_NUM + 1)
 
 /* Target-point modes. */
 #define SF_TARGET_ORIGIN    0
@@ -110,7 +118,8 @@ typedef struct
  * Note the shared entries. On Bedrock the four "temple" structures occupy one
  * region grid and the biome decides which of them appears, exactly as the old
  * Java Feature type did; the biome check downstream disambiguates. Nether
- * fortresses and bastions likewise share a grid.
+ * fortresses and bastions also share a grid, but nothing downstream can tell
+ * those two apart on Bedrock, so they are one criterion: SF_NETHER_COMPLEX.
  */
 static const BedrockConfig g_bedrock[] = {
     { Village,         10387312,  34,  8, SF_SPREAD_TRIANGULAR },
@@ -122,8 +131,7 @@ static const BedrockConfig g_bedrock[] = {
     { Treasure,        16842397,   4,  2, SF_SPREAD_TRIANGULAR },
     { Ocean_Ruin,      14357621,  20,  8, SF_SPREAD_LINEAR },
     { Shipwreck,      165745295,  24,  4, SF_SPREAD_LINEAR },
-    { Fortress,        30084232,  30,  4, SF_SPREAD_LINEAR },
-    { Bastion,         30084232,  30,  4, SF_SPREAD_LINEAR },
+    { SF_NETHER_COMPLEX, 30084232, 30, 4, SF_SPREAD_LINEAR },
     { Desert_Pyramid,  14357617,  32,  8, SF_SPREAD_LINEAR },
     { Igloo,           14357617,  32,  8, SF_SPREAD_LINEAR },
     { Swamp_Hut,       14357617,  32,  8, SF_SPREAD_LINEAR },
@@ -259,6 +267,7 @@ static inline int sf_dim_of(int type)
     case Fortress:
     case Bastion:
     case Ruined_Portal_N:
+    case SF_NETHER_COMPLEX:
         return DIM_NETHER;
     case End_City:
     case End_Gateway:
@@ -285,6 +294,8 @@ int sf_supported(int type, int mc)
     StructureConfig sc;
     if (type == SF_STRONGHOLD)
         return mc >= MC_1_0;
+    if (type == SF_NETHER_COMPLEX)
+        return mc >= MC_1_16_1; /* bastions, and so the shared grid, are 1.16+ */
     return getStructureConfig(type, mc, &sc) != 0;
 }
 
@@ -385,6 +396,8 @@ int sf_configure(int mc, int edition, int target, const int32_t *crit, int ncrit
             else
             {
                 c->dim = sf_dim_of(c->type);
+                if (c->type == SF_NETHER_COMPLEX && edition != SF_BEDROCK)
+                    return -12; /* Java can tell fortress and bastion apart */
                 if (c->type == SF_STRONGHOLD)
                 {
                     if (mc < MC_1_0)
@@ -404,10 +417,17 @@ int sf_configure(int mc, int edition, int target, const int32_t *crit, int ncrit
                      * biome generation, which the two editions share. */
                     if (c->tmask || c->areaMin || c->areaMax || c->subtype != SF_ANY)
                         return -11;
-                    /* Still need the Java config for the biome checks. */
-                    if (!getStructureConfig(c->type, mc, &c->sconf))
-                        return -3;
-                    c->hasconf = 1;
+                    /* The combined nether criterion is not a cubiomes type, so
+                     * it has no config and needs no biome check: a complex
+                     * region always holds a fortress or a bastion, and
+                     * fortresses generate exactly where bastions do not. */
+                    if (c->type != SF_NETHER_COMPLEX)
+                    {
+                        /* Still need the Java config for the biome checks. */
+                        if (!getStructureConfig(c->type, mc, &c->sconf))
+                            return -3;
+                        c->hasconf = 1;
+                    }
                 }
                 else
                 {
@@ -786,8 +806,11 @@ static int sf_collect(const Crit *c, uint64_t seed, int cx, int cz, int r,
     n = sf_candidates(c, seed, cx, cz, r, hits);
     for (i = 0; i < n; i++)
     {
-        int viable = isViableStructurePos(c->type, g, hits[i].x, hits[i].z,
-                                          c->variant > 0 ? (uint32_t) c->variant : 0);
+        /* A nether complex region always holds one of the pair, so there is
+         * nothing left to confirm; anything else gets the biome check. */
+        int viable = c->type == SF_NETHER_COMPLEX ? 1 :
+            isViableStructurePos(c->type, g, hits[i].x, hits[i].z,
+                                 c->variant > 0 ? (uint32_t) c->variant : 0);
         if (!viable)
             continue;
 

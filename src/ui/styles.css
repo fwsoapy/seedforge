@@ -1,14 +1,123 @@
+/*
+ * Theming.
+ *
+ * Two palettes, written out in full rather than as light-dark() pairs. The map
+ * is drawn on a canvas, and canvas colours come from getComputedStyle, which
+ * hands back custom properties unresolved: a light-dark() token reaches the
+ * drawing code as the literal text, every fillStyle is rejected, and the map
+ * renders solid black. Plain values keep CSS and canvas reading the same
+ * thing.
+ *
+ * Light applies when the OS asks for it and no explicit choice overrides it,
+ * or when the toggle picks it outright.
+ */
 :root {
   color-scheme: dark;
+
   --bg: #10141a;
   --bg-raised: #171d26;
   --bg-input: #0d1116;
   --line: #26303d;
+  --line-hover: #3a4757;
   --text: #e6edf3;
   --muted: #93a1b1;
+  --faint: #6f7c8b;
   --accent: #5ac36a;
+  --accent-hover: #6ad57a;
   --accent-dark: #3d8f4a;
+  --on-accent: #0c1710;
+  --selected-bg: #12241a;
   --danger: #ef6461;
+  --warn: #d9a441;
+  --nether: #e08a72;
+  --nether-line: #5a3630;
+  --end: #c9a4e8;
+  --end-line: #4b3a5e;
+  --map-bg: #0a0e13;
+  --map-axis: #1a2029;
+  --map-grid: #1e2732;
+  --map-ring: #2f3d4d;
+  --map-ring-label: #4b5765;
+  --biome-dot: #63b3ed;
+  --tip-bg: #0b1219;
+  --scrim: rgba(6, 9, 13, 0.82);
+  --veil: rgba(10, 14, 19, 0.82);
+  --shadow: rgba(0, 0, 0, 0.5);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+
+    --bg: #f4f6f9;
+    --bg-raised: #ffffff;
+    --bg-input: #f8fafc;
+    --line: #d6dde5;
+    --line-hover: #b3bfcc;
+    --text: #1b2430;
+    --muted: #5b6876;
+    --faint: #76828f;
+    --accent: #2f8f43;
+    --accent-hover: #27803a;
+    --accent-dark: #4aa85c;
+    --on-accent: #ffffff;
+    --selected-bg: #eaf6ed;
+    --danger: #c8332f;
+    --warn: #a9741a;
+    --nether: #b4553a;
+    --nether-line: #e3bdb2;
+    --end: #7a4fa3;
+    --end-line: #d3c1e6;
+    --map-bg: #ffffff;
+    --map-axis: #dde3ea;
+    --map-grid: #e9edf2;
+    --map-ring: #c2ccd7;
+    --map-ring-label: #97a3b0;
+    --biome-dot: #1f6fb2;
+    --tip-bg: #ffffff;
+    --scrim: rgba(27, 36, 48, 0.44);
+    --veil: rgba(255, 255, 255, 0.88);
+    --shadow: rgba(27, 36, 48, 0.18);
+  }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f4f6f9;
+  --bg-raised: #ffffff;
+  --bg-input: #f8fafc;
+  --line: #d6dde5;
+  --line-hover: #b3bfcc;
+  --text: #1b2430;
+  --muted: #5b6876;
+  --faint: #76828f;
+  --accent: #2f8f43;
+  --accent-hover: #27803a;
+  --accent-dark: #4aa85c;
+  --on-accent: #ffffff;
+  --selected-bg: #eaf6ed;
+  --danger: #c8332f;
+  --warn: #a9741a;
+  --nether: #b4553a;
+  --nether-line: #e3bdb2;
+  --end: #7a4fa3;
+  --end-line: #d3c1e6;
+  --map-bg: #ffffff;
+  --map-axis: #dde3ea;
+  --map-grid: #e9edf2;
+  --map-ring: #c2ccd7;
+  --map-ring-label: #97a3b0;
+  --biome-dot: #1f6fb2;
+  --tip-bg: #ffffff;
+  --scrim: rgba(27, 36, 48, 0.44);
+  --veil: rgba(255, 255, 255, 0.88);
+  --shadow: rgba(27, 36, 48, 0.18);
+}
+
+:root[data-theme="dark"] { color-scheme: dark; }
+
+:root {
   --radius: 10px;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
@@ -58,6 +167,23 @@ a { color: var(--accent); }
 }
 .ghost-link:hover { color: var(--text); border-color: var(--accent-dark); }
 
+.topbar-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 6px 11px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+.icon-btn:hover { color: var(--text); border-color: var(--accent-dark); }
+.icon-btn span:first-child { font-size: 14px; }
+
 main {
   max-width: 1080px;
   margin: 0 auto;
@@ -104,7 +230,7 @@ input, select {
 }
 input:focus, select:focus { outline: 2px solid var(--accent-dark); outline-offset: 1px; }
 
-.field-hint { font-size: 11px; color: #6f7c8b; line-height: 1.4; }
+.field-hint { font-size: 11px; color: var(--faint); line-height: 1.4; }
 
 .with-unit { position: relative; display: block; }
 .with-unit .unit {
@@ -140,7 +266,7 @@ input:focus, select:focus { outline: 2px solid var(--accent-dark); outline-offse
   font-weight: 600;
   letter-spacing: 0.7px;
   text-transform: uppercase;
-  color: #6f7c8b;
+  color: var(--faint);
 }
 
 .chip-grid {
@@ -162,8 +288,8 @@ input:focus, select:focus { outline: 2px solid var(--accent-dark); outline-offse
   user-select: none;
   overflow: hidden;
 }
-.chip:hover { border-color: #3a4757; }
-.chip.on { border-color: var(--accent-dark); background: #12241a; }
+.chip:hover { border-color: var(--line-hover); }
+.chip.on { border-color: var(--accent-dark); background: var(--selected-bg); }
 
 .chip input { width: auto; flex: none; margin: 0; accent-color: var(--accent); }
 
@@ -190,8 +316,8 @@ input:focus, select:focus { outline: 2px solid var(--accent-dark); outline-offse
   border: 1px solid var(--line);
   color: var(--muted);
 }
-.dim-tag.nether { color: #e08a72; border-color: #5a3630; }
-.dim-tag.end { color: #c9a4e8; border-color: #4b3a5e; }
+.dim-tag.nether { color: var(--nether); border-color: var(--nether-line); }
+.dim-tag.end { color: var(--end); border-color: var(--end-line); }
 
 /* --- selected list -------------------------------------------------- */
 
@@ -205,7 +331,7 @@ input:focus, select:focus { outline: 2px solid var(--accent-dark); outline-offse
 .sel-row {
   border: 1px solid var(--accent-dark);
   border-radius: 9px;
-  background: #12241a;
+  background: var(--selected-bg);
   padding: 11px 12px;
 }
 
@@ -221,7 +347,7 @@ input:focus, select:focus { outline: 2px solid var(--accent-dark); outline-offse
   line-height: 1;
   border-radius: 5px;
 }
-.sel-remove:hover { color: var(--danger); background: rgba(239, 100, 97, 0.12); }
+.sel-remove:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
 
 .sel-note { font-size: 11.5px; color: var(--muted); margin: 6px 0 0; line-height: 1.45; }
 
@@ -255,7 +381,7 @@ button.small { padding: 7px 13px; font-size: 13px; }
 .sel-variants { margin-top: 9px; display: flex; flex-direction: column; gap: 8px; }
 .sel-variant { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--muted); }
 .sel-variant select { padding: 6px 8px; font-size: 13px; }
-.exp { color: #d9a441; }
+.exp { color: var(--warn); }
 
 .advanced { margin-top: 18px; }
 .advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; }
@@ -285,13 +411,13 @@ button {
   border: 1px solid transparent;
 }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
-.primary { background: var(--accent); color: #0c1710; font-weight: 600; }
-.primary:hover:not(:disabled) { background: #6ad57a; }
+.primary { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.primary:hover:not(:disabled) { background: var(--accent-hover); }
 .secondary { background: transparent; border-color: var(--line); color: var(--text); }
 .ghost { background: transparent; border-color: transparent; color: var(--muted); }
 .ghost:hover { color: var(--text); }
 
-.hint.slow { color: #d9a441; margin-top: 12px; }
+.hint.slow { color: var(--warn); margin-top: 12px; }
 
 .error { color: var(--danger); font-size: 13.5px; margin: 14px 0 0; }
 
@@ -306,7 +432,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .status { margin: 14px 0 0; font-size: 13.5px; color: var(--muted); }
 .status:empty { display: none; }
 .status.done { color: var(--accent); }
-.status.warn { color: #d9a441; }
+.status.warn { color: var(--warn); }
 #bar-fill {
   height: 100%;
   width: 30%;
@@ -335,6 +461,68 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   .result { grid-template-columns: 1fr; }
 }
 
+/* --- narrow screens -------------------------------------------------- */
+
+/*
+ * The map's expand button only appears on hover, which never happens on a
+ * touch screen, so there it stays visible.
+ */
+@media (hover: none) {
+  .map-expand { opacity: 1; }
+}
+
+@media (max-width: 620px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+  .brand { gap: 11px; }
+  .brand-mark { width: 40px; height: 40px; }
+  .topbar h1 { font-size: 18px; }
+  .tagline { font-size: 12px; }
+  .topbar-actions { width: 100%; }
+  /* Pushing GitHub to the far edge keeps the two from reading as one control. */
+  .topbar-actions .ghost-link { margin-left: auto; }
+
+  main { padding: 16px 14px 44px; gap: 14px; }
+  .panel { padding: 15px; }
+  .site-footer { padding: 0 14px 40px; }
+
+  /* One column rather than a 190px minimum that can overflow a 320px screen. */
+  .row { grid-template-columns: 1fr; gap: 13px; }
+  .chip-grid { grid-template-columns: 1fr 1fr; gap: 7px; }
+  .selected-list { grid-template-columns: 1fr; }
+
+  /* A proximity rule is a sentence, and it does not fit on one line here. */
+  .rule-row { align-items: stretch; flex-direction: column; }
+  .rule-row select, .rule-dist { width: 100%; }
+  .rule-row .sel-remove { margin-left: 0; align-self: flex-end; }
+
+  .actions { gap: 8px; margin-top: 18px; padding-top: 16px; }
+  .actions button { flex: 1 1 auto; }
+
+  .stats { grid-template-columns: 1fr 1fr; }
+  .stats strong { font-size: 19px; }
+
+  .hits .name { min-width: 0; flex: 1 1 100%; }
+  .hits .coords { min-width: 0; text-align: left; }
+
+  .map-overlay { padding: 10px; }
+  .map-panel {
+    padding: 10px;
+    width: min(97vw, 900px);
+    height: min(92vh, 900px);
+    max-width: 97vw;
+  }
+  .map-bar { flex-wrap: wrap; gap: 7px; }
+  .map-hint { flex-basis: 100%; margin-left: 0; }
+}
+
+@media (max-width: 400px) {
+  .chip-grid { grid-template-columns: 1fr; }
+}
+
 .result-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .seed { font-family: var(--mono); font-size: 16px; word-break: break-all; }
 .copy { font-size: 12px; padding: 4px 9px; background: transparent; border-color: var(--line); color: var(--muted); }
@@ -357,7 +545,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   font-size: 11px;
   padding: 3px 8px;
   border: 1px solid var(--line);
-  background: rgba(10, 14, 19, 0.82);
+  background: var(--veil);
   color: var(--muted);
   border-radius: 6px;
   opacity: 0;
@@ -373,7 +561,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: rgba(6, 9, 13, 0.82);
+  background: var(--scrim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -407,21 +595,21 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   justify-content: center;
 }
 
-canvas.map-large { cursor: grab; }
+canvas.map-large { cursor: grab; touch-action: none; }
 canvas.map-large.grabbing { cursor: grabbing; }
 
 canvas.map {
   display: block;
   border-radius: 8px;
   border: 1px solid var(--line);
-  background: #0a0e13;
+  background: var(--map-bg);
   max-width: 100%;
 }
 
 .map-tip {
   position: absolute;
   transform: translate(-50%, -100%);
-  background: #0b1219;
+  background: var(--tip-bg);
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 5px 8px;
@@ -429,7 +617,7 @@ canvas.map {
   white-space: nowrap;
   pointer-events: none;
   color: var(--text);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 14px var(--shadow);
   z-index: 2;
 }
 
@@ -443,3 +631,20 @@ canvas.map {
 .caveats summary { cursor: pointer; margin-bottom: 8px; }
 .caveats ul { margin: 0 0 14px; padding-left: 18px; }
 .caveats li { margin-bottom: 6px; }
+
+/*
+ * iOS Safari zooms the page in whenever a focused field's text is under 16px,
+ * and never zooms back out. Every compact override further up the sheet has to
+ * be listed here, because each one outranks a bare `input, select` rule.
+ */
+@media (pointer: coarse) {
+  input,
+  select,
+  .sel-dist input,
+  .rule-dist,
+  .rule-row select,
+  .sel-variant select,
+  .check-input input {
+    font-size: 16px;
+  }
+}
