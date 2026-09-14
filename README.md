@@ -249,7 +249,9 @@ Always verify a seed in-game before committing a world to it.
 - [x] Per-criterion distances and proximity rules between structures
 - [x] Minecraft 26.x support
 - [ ] Sulfur caves (blocked on the 26.2 biome tree being published)
-- [ ] Ruined portal chest loot filtering
+- [ ] Ruined portal chest loot filtering (blocked: needs exact structure
+      altitude to derive the chest's loot seed - see
+      [`vendor/patches/README.md`](vendor/patches/README.md))
 - [ ] Cluster/quad searches (e.g. four witch huts in one perimeter)
 - [ ] Shareable search URLs
 - [ ] Export results as JSON/CSV
