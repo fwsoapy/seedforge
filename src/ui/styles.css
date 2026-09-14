@@ -269,6 +269,29 @@ input:focus, select:focus { outline: 2px solid var(--accent-dark); outline-offse
   color: var(--faint);
 }
 
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 9px;
+}
+
+.preset {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--bg-input);
+  color: var(--text);
+  font: inherit;
+}
+.preset:hover { border-color: var(--accent-dark); }
+.preset.on { border-color: var(--accent-dark); background: var(--selected-bg); }
+.preset-name { font-size: 13.5px; font-weight: 600; }
+.preset-blurb { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+
 .chip-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(186px, 1fr));

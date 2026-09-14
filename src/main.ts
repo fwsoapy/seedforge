@@ -6,6 +6,7 @@
  * workers so the UI never blocks.
  */
 
+import { PRESETS, type Preset } from './data/presets';
 import { DEFAULT_VERSION, MC_VERSIONS } from './data/versions';
 import { SearchEngine } from './search/engine';
 import { SearchPool, suggestedWorkerCount } from './search/pool';
@@ -37,6 +38,7 @@ const clearBtn = $<HTMLButtonElement>('clear');
 const checkBtn = $<HTMLButtonElement>('check');
 const checkSeedInput = $<HTMLInputElement>('check-seed');
 const themeBtn = $<HTMLButtonElement>('theme');
+const presetList = $<HTMLElement>('preset-list');
 const errorEl = $<HTMLParagraphElement>('error');
 const progressPanel = $<HTMLElement>('progress-panel');
 const resultsEl = $<HTMLElement>('results');
@@ -247,7 +249,11 @@ async function main(): Promise<void> {
       if (Number(editionSel.value) === EDITION.bedrock) return meta!.supportsBedrock(id);
       return true;
     },
-    () => showError(null),
+    () => {
+      showError(null);
+      // Any hand edit means the selection is no longer that preset.
+      presetList.querySelectorAll('.preset.on').forEach((el) => el.classList.remove('on'));
+    },
   );
   picker.render();
 
@@ -271,6 +277,38 @@ async function main(): Promise<void> {
     picker.setJavaOnlyAllowed(!bedrock);
     picker.render();
   };
+
+  /*
+   * Preset buttons. A preset replaces the selection outright, which is what
+   * makes "click one, hit search" work, but it leaves edition, version, target
+   * and thread count alone: those are the user's setup, not part of the query.
+   */
+  const usePreset = (preset: Preset): void => {
+    showError(null);
+    picker.applyPreset(preset);
+    presetList.querySelectorAll('.preset').forEach((el) => {
+      el.classList.toggle('on', (el as HTMLElement).dataset['preset'] === preset.key);
+    });
+  };
+
+  for (const preset of PRESETS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'preset';
+    btn.dataset['preset'] = preset.key;
+
+    const name = document.createElement('span');
+    name.className = 'preset-name';
+    name.textContent = preset.name;
+
+    const blurb = document.createElement('span');
+    blurb.className = 'preset-blurb';
+    blurb.textContent = preset.blurb;
+
+    btn.append(name, blurb);
+    btn.addEventListener('click', () => usePreset(preset));
+    presetList.append(btn);
+  }
 
   editionSel.addEventListener('change', applyEdition);
   versionSel.addEventListener('change', () => picker.render());

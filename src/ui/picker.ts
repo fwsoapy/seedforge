@@ -10,6 +10,7 @@
 
 import { BIOME_GROUPS, SEARCHABLE_BIOMES, type BiomeDef, type BiomeGroup } from '../data/biomes';
 import { STRUCTURES, type StructureDef, type VariantGroup } from '../data/structures';
+import type { Preset } from '../data/presets';
 import { KIND, type Criterion, type CriterionKind, type ProximityRule } from '../search/types';
 
 /** Distance a newly ticked criterion starts at, in blocks. */
@@ -85,6 +86,60 @@ export class CriterionPicker {
    */
   setJavaOnlyAllowed(allowed: boolean): void {
     this.allowJavaOnly = allowed;
+  }
+
+  /**
+   * Replaces the whole selection with a preset.
+   *
+   * Everything is offered up as written and then pruned against the current
+   * edition and version: a structure that is not available is skipped, a
+   * variant group that does not apply is left unset, and a rule loses its
+   * footing and is dropped once either end of it is gone. That is why a
+   * preset needs only one definition rather than one per edition.
+   */
+  applyPreset(preset: Preset): void {
+    this.selected.clear();
+    this.rules = [];
+
+    for (const c of preset.criteria) {
+      if (!this.supports(c.kind, c.id)) continue;
+      const k = key(c.kind, c.id);
+      const entry = this.entryFor(c.kind, c.id);
+      const variants: Record<string, string | null> = {};
+      for (const g of this.groupsFor(entry)) {
+        const wanted = c.variants?.[g.key];
+        // Only honour a value the group actually offers, so a renamed option
+        // cannot silently leave a filter set to something meaningless.
+        variants[g.key] = wanted !== undefined && g.options.some((o) => o.value === wanted)
+          ? wanted
+          : null;
+      }
+      this.selected.set(k, { variants, radius: c.radius });
+    }
+
+    for (const r of preset.rules) {
+      const a = key(r.a[0], r.a[1]);
+      const b = key(r.b[0], r.b[1]);
+      if (!this.selected.has(a) || !this.selected.has(b)) continue;
+      if (!this.measurable(a, b)) continue;
+      this.rules.push({ a, b, maxDist: r.maxDist });
+    }
+
+    this.render();
+    this.onChange();
+  }
+
+  /** The entry for a criterion, whether or not it is currently listed. */
+  private entryFor(kind: CriterionKind, id: number): Entry {
+    const listed = this.entries.find((e) => e.kind === kind && e.id === id);
+    if (listed) return listed;
+    if (kind === KIND.structure) {
+      const def = STRUCTURES.find((d) => d.id === id);
+      if (def) return structureEntry(def);
+    }
+    const biome = SEARCHABLE_BIOMES.find((d) => d.id === id);
+    if (biome) return biomeEntry(biome);
+    return { kind, id, name: `#${id}`, dim: 'overworld' };
   }
 
   /** Groups that apply to the edition currently selected. */
