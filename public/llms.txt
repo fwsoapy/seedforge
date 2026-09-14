@@ -1,0 +1,44 @@
+# SeedForge
+
+> A client-side Minecraft seed finder for Java and Bedrock Edition. Pick the
+> structures and biomes you want, give each one its own maximum distance from
+> world spawn, optionally require two of them to generate near each other, and
+> search for seeds that satisfy all of it at once.
+
+Live tool: https://fwsoapy.github.io/seedforge/
+Source: https://github.com/fwsoapy/seedforge
+Licence: MIT
+
+## What it does
+
+- Searches Minecraft world seeds for a combination of structures and biomes
+  near spawn. A seed only matches when every criterion is satisfied.
+- Each criterion carries its own distance limit, so you can ask for a village
+  within 100 blocks and a ruined portal within 500 in the same search.
+- Proximity rules add conditions between two picks, for example a bastion
+  within 300 blocks of where a ruined portal drops you in the Nether.
+- Filters go down to ruined portal type, placement and template, bastion
+  remnant type, stronghold ring, and village biome type.
+- Java Edition 1.7 through 26.2, and Bedrock Edition 1.18 and later.
+
+## How it works
+
+World generation is deterministic, so structure positions are computed rather
+than looked up. There is no seed database and no backend. Java generation comes
+from Cubiomes (https://github.com/Cubitect/cubiomes) compiled to WebAssembly;
+Bedrock structure placement is implemented in the repository directly, because
+Cubiomes does not cover it. Searching runs in Web Workers, one per CPU core,
+entirely in the visitor's browser.
+
+## Accuracy
+
+Results are computed estimates with documented limits, listed under "Accuracy
+and limitations" in the tool and in the repository README. Notable ones: some
+1.18+ structures depend on surface height that Cubiomes approximates; biome
+criteria are grid-sampled so a very small patch can be missed; ravines and
+individual caves cannot be searched at all.
+
+## Not affiliated
+
+Unofficial fan tool. Not affiliated with, endorsed by, or associated with
+Mojang Studios or Microsoft.

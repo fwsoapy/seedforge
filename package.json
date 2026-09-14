@@ -2,7 +2,7 @@
   "name": "seedforge",
   "version": "0.1.0",
   "private": true,
-  "description": "Client-side Minecraft seed finder powered by Cubiomes compiled to WebAssembly",
+  "description": "Client-side Minecraft seed finder for Java and Bedrock. Search seeds by structure and biome near spawn, with per-structure distances and proximity rules. Powered by Cubiomes compiled to WebAssembly.",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -18,5 +18,24 @@
     "typescript": "^5.6.3",
     "vite": "^5.4.10",
     "vitest": "^2.1.4"
-  }
+  },
+  "homepage": "https://fwsoapy.github.io/seedforge/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fwsoapy/seedforge.git"
+  },
+  "keywords": [
+    "minecraft",
+    "minecraft-seed",
+    "seed-finder",
+    "seed-search",
+    "structure-finder",
+    "biome-finder",
+    "minecraft-tools",
+    "cubiomes",
+    "webassembly",
+    "wasm",
+    "bedrock-edition",
+    "java-edition"
+  ]
 }

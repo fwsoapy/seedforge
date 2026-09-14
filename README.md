@@ -275,6 +275,48 @@ Always verify a seed in-game before committing a world to it.
 - [ ] Export results as JSON/CSV
 - [ ] An inline map preview of the surrounding biomes for a chosen seed
 
+## FAQ
+
+**Is this an official Minecraft tool?**
+No. It is an unofficial fan tool, not affiliated with Mojang or Microsoft.
+
+**Does it work for Bedrock Edition?**
+Yes, for 1.18 and later. Bedrock places structures with a different generator
+to Java, and that generator is implemented here. Pick Bedrock from the edition
+dropdown and the structure list narrows to what Bedrock actually places.
+
+**How do I find a seed with a village near spawn?**
+Tick Village, set its distance to whatever you can walk, and search. Add a
+second structure if you want both near spawn; a seed only counts when every
+criterion is satisfied.
+
+**Can I search for two structures near each other rather than near spawn?**
+Yes, that is what proximity rules are for. "Ruined portal within 100 blocks of
+the village" is a condition in its own right, on top of each structure's own
+distance from spawn. Overworld to Nether works too, measured in Nether blocks.
+
+**Can I find a seed with an ancient city or a deep dark near spawn?**
+Yes. Ancient city is a structure and deep dark is a biome, so you can ask for
+either or both.
+
+**Why is my search slow?**
+Working out each seed's world spawn costs a few milliseconds and is most of
+the cost. Switching "Measure from" to world origin is roughly 50x faster, and
+for near-spawn searches the two rarely disagree by much.
+
+**Does it upload my seed anywhere?**
+No. There is no backend and no analytics. Everything is computed in your
+browser, and closing the tab is the end of it.
+
+**Which Minecraft versions are supported?**
+Java 1.7 through 26.2, and Bedrock 1.18 and later. Minecraft moved to
+year-based version numbers in 2026, so 26.2 is the current release.
+
+**Can I search for ravines, caves or ore?**
+No. Ravines and caves are carved into terrain per chunk rather than placed on
+a region grid, so they cannot be computed the way structures can. The lush
+caves and dripstone caves biome criteria are the closest thing available.
+
 ## Contributing
 
 Bug reports and pull requests are welcome - see [CONTRIBUTING.md](CONTRIBUTING.md).
