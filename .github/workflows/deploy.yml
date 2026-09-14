@@ -29,9 +29,12 @@ jobs:
           cache: npm
 
       - name: Set up Emscripten
+        # Pinned rather than "latest": latest re-downloads emsdk/archive/HEAD.zip
+        # on every run, which has been handing out 504s, and a moving toolchain
+        # would quietly change the shipped WASM.
         uses: mymindstorm/setup-emsdk@v14
         with:
-          version: latest
+          version: 6.0.9
           actions-cache-folder: emsdk-cache
 
       - name: Install dependencies
