@@ -29,9 +29,10 @@ account and nothing leaves your machine.
   distances from spawn. These work across the Overworld and the Nether too:
   "bastion within 300 blocks of the ruined portal" divides the portal's
   coordinates by 8 to find where it drops you, and measures from there.
-- **Biome criteria too.** Hunt for the deep dark (wardens and ancient cities),
-  sulfur caves, lush caves, dripstone caves, mushroom fields, cherry groves,
-  ice spikes and more, alongside your structure picks.
+- **Biome criteria too.** Over 50 biomes, from the everyday (plains, forest,
+  birch forest, taiga, desert, ocean, river) to the ones worth hunting for
+  (deep dark, sulfur caves, mushroom fields, cherry grove, ice spikes),
+  grouped so the list stays readable and searchable alongside structures.
 - **Variant filters.** Village biome type (plains, desert, savanna, taiga,
   snowy) and zombie villages are exact. Ruined portals split into three
   independent selectors - type, placement and template. Bastion remnants filter
@@ -248,6 +249,10 @@ suspects.
   very large ones. A biome patch smaller than the sample spacing can be stepped
   over, so a biome search can miss a small patch. It never invents one. Biome
   searches are also noticeably slower than structure searches.
+- Biomes are three-dimensional from 1.18 on, so each one is sampled at a height
+  it actually occupies: caves underground, peaks high up, everything else near
+  the surface. Every biome in the list has been checked to confirm it really
+  turns up rather than silently matching nothing.
 - Ore placement is not searchable at all.
 
 Always verify a seed in-game before committing a world to it.

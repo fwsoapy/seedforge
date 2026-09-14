@@ -8,7 +8,7 @@
  * actually adjusting in one place.
  */
 
-import { SEARCHABLE_BIOMES, type BiomeDef } from '../data/biomes';
+import { BIOME_GROUPS, SEARCHABLE_BIOMES, type BiomeDef, type BiomeGroup } from '../data/biomes';
 import { STRUCTURES, type StructureDef, type VariantGroup } from '../data/structures';
 import { KIND, type Criterion, type CriterionKind, type ProximityRule } from '../search/types';
 
@@ -27,6 +27,8 @@ interface Entry {
   dim: 'overworld' | 'nether' | 'end';
   note?: string;
   variants?: readonly VariantGroup[];
+  /** Biome entries only: which heading they render under. */
+  group?: BiomeGroup;
 }
 
 const key = (kind: CriterionKind, id: number): string => `${kind}:${id}`;
@@ -49,6 +51,7 @@ function biomeEntry(def: BiomeDef): Entry {
     id: def.id,
     name: def.name,
     dim: 'overworld',
+    group: def.group,
     ...(def.note !== undefined ? { note: def.note } : {}),
   };
 }
@@ -88,9 +91,28 @@ export class CriterionPicker {
     this.structureRoot.replaceChildren(
       ...this.entries.filter((e) => e.kind === KIND.structure).map((e) => this.chip(e)),
     );
-    this.biomeRoot.replaceChildren(
-      ...this.entries.filter((e) => e.kind === KIND.biome).map((e) => this.chip(e)),
-    );
+    // Biomes are numerous enough that one flat grid is unreadable, so they
+    // render under short headings instead.
+    const biomes = this.entries.filter((e) => e.kind === KIND.biome);
+    const blocks: HTMLElement[] = [];
+    for (const group of BIOME_GROUPS) {
+      const inGroup = biomes.filter((e) => e.group === group.key);
+      if (inGroup.length === 0) continue;
+
+      const heading = document.createElement('h3');
+      heading.className = 'group-heading';
+      heading.textContent = group.label;
+
+      const grid = document.createElement('div');
+      grid.className = 'chip-grid';
+      grid.append(...inGroup.map((e) => this.chip(e)));
+
+      const block = document.createElement('div');
+      block.className = 'biome-group';
+      block.append(heading, grid);
+      blocks.push(block);
+    }
+    this.biomeRoot.replaceChildren(...blocks);
     this.renderSelected();
   }
 
@@ -176,7 +198,9 @@ export class CriterionPicker {
     const chip = document.createElement('label');
     chip.className = 'chip';
     chip.classList.toggle('on', on);
-    if (entry.note) chip.title = entry.note;
+    // Long names ellipsise in the grid, so the full text always lives in the
+    // tooltip alongside any note.
+    chip.title = entry.note ? `${entry.name} - ${entry.note}` : entry.name;
 
     const cb = document.createElement('input');
     cb.type = 'checkbox';

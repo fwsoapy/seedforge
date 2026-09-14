@@ -132,6 +132,17 @@ input:focus, select:focus { outline: 2px solid var(--accent-dark); outline-offse
 
 /* --- chip grid ------------------------------------------------------ */
 
+.biome-group + .biome-group { margin-top: 14px; }
+
+.group-heading {
+  margin: 0 0 7px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: #6f7c8b;
+}
+
 .chip-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(186px, 1fr));
