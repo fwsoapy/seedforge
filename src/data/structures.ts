@@ -74,6 +74,12 @@ export interface VariantGroup {
   readonly label: string;
   /** Shown with an "experimental" warning in the UI. */
   readonly experimental?: boolean;
+  /**
+   * True when the filter is derived from cubiomes' getVariant(), which uses
+   * Java's RNG. Bedrock rolls these with a different generator entirely, so
+   * the answer would be Java's for a Bedrock world. Hidden on Bedrock.
+   */
+  readonly javaOnly?: boolean;
   /** Extra explanation rendered under the dropdown. */
   readonly note?: string;
   readonly options: readonly VariantOption[];
@@ -100,6 +106,7 @@ const ANY: VariantOption = { value: null, label: 'Any' };
  */
 const RUINED_PORTAL_TYPE: VariantGroup = {
   key: 'portalType',
+  javaOnly: true,
   label: 'Portal type',
   options: [
     ANY,
@@ -110,6 +117,7 @@ const RUINED_PORTAL_TYPE: VariantGroup = {
 
 const RUINED_PORTAL_PLACEMENT: VariantGroup = {
   key: 'portalPlacement',
+  javaOnly: true,
   label: 'Placement',
   options: [
     ANY,
@@ -120,6 +128,7 @@ const RUINED_PORTAL_PLACEMENT: VariantGroup = {
 
 const RUINED_PORTAL_TEMPLATE: VariantGroup = {
   key: 'portalTemplate',
+  javaOnly: true,
   label: 'Template',
   note: 'Which of the game\'s portal_N structure files was used. Giant portals only use templates 1-3.',
   options: [
@@ -138,6 +147,7 @@ const RUINED_PORTAL_TEMPLATE: VariantGroup = {
  */
 const BASTION_TYPE: VariantGroup = {
   key: 'bastionType',
+  javaOnly: true,
   label: 'Bastion type',
   options: [
     ANY,
@@ -188,6 +198,7 @@ export const STRUCTURES: readonly StructureDef[] = [
       },
       {
         key: 'size',
+  javaOnly: true,
         label: 'Size',
         experimental: true,
         note: 'Inferred from the starting meeting-point piece. The jigsaw expansion that decides the real village size is not modelled, so treat this as a hint.',
@@ -200,6 +211,7 @@ export const STRUCTURES: readonly StructureDef[] = [
       },
       {
         key: 'abandoned',
+  javaOnly: true,
         label: 'Zombie village',
         options: [
           ANY,
@@ -226,6 +238,7 @@ export const STRUCTURES: readonly StructureDef[] = [
     variants: [
       {
         key: 'basement',
+  javaOnly: true,
         label: 'Basement',
         experimental: true,
         options: [
@@ -253,6 +266,7 @@ export const STRUCTURES: readonly StructureDef[] = [
     variants: [
       {
         key: 'cracked',
+  javaOnly: true,
         label: 'Crack',
         experimental: true,
         options: [

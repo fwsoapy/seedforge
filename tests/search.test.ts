@@ -302,6 +302,40 @@ describe('bedrock edition', () => {
     expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(-10);
   });
 
+  it('refuses variant filters that come from Java RNG', () => {
+    // getVariant() rolls traits with chunkGenerateRnd, which is Java's LCG.
+    // Bedrock uses a Mersenne Twister, so filtering an "above ground" ruined
+    // portal on Bedrock was reporting Java's answer for a different world.
+    const portalAboveGround = [
+      K_STRUCT, STRUCT.Ruined_Portal, -1, 0, /* traitMask */ 4, 0, 0, 0, 500, -1,
+    ];
+    M.HEAP32.set(portalAboveGround, critPtr >> 2);
+    expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(-11);
+    // the same filter is fine on Java
+    expect(M._sf_configure(MC_26_2, 0, 0, critPtr, 1, pairPtr, 0)).toBe(1);
+
+    // bastion type comes from getVariant too
+    const bastionType = [K_STRUCT, STRUCT.Bastion, -1, 0, 0, 0, 0, 0, 500, /* subtype */ 2];
+    M.HEAP32.set(bastionType, critPtr >> 2);
+    expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(-11);
+  });
+
+  it('still allows the village biome constraint, which is biome-derived', () => {
+    // Biome generation is shared between the editions from 1.18, so this one
+    // is meaningful on Bedrock where the getVariant traits are not.
+    const desertVillage = [K_STRUCT, STRUCT.Village, BIOME.desert, 0, 0, 0, 0, 0, 2_000, -1];
+    M.HEAP32.set(desertVillage, critPtr >> 2);
+    expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(1);
+
+    const found = search(
+      MC_26_2, 0, 0,
+      [[K_STRUCT, STRUCT.Village, BIOME.desert, 0, 0, 0, 0, 0, 2_000]],
+      0n, 400, [], BEDROCK,
+    );
+    expect(found.length).toBeGreaterThan(0);
+    for (const f of found) expect(f.hits[0]!.biome).toBe(BIOME.desert);
+  });
+
   it('refuses Bedrock before 1.18, when the generators were still separate', () => {
     M.HEAP32.set([K_STRUCT, STRUCT.Village, -1, 0, 0, 0, 0, 0, 500, -1], critPtr >> 2);
     expect(M._sf_configure(MC_1_16, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(-9);

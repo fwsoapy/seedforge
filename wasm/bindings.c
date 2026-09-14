@@ -401,6 +401,13 @@ int sf_configure(int mc, int edition, int target, const int32_t *crit, int ncrit
                     c->bconf = sf_bedrock_config(c->type);
                     if (!c->bconf)
                         return -10; /* not placed by the Bedrock generator */
+                    /* getVariant() derives traits from chunkGenerateRnd, which
+                     * is Java's LCG. On Bedrock those answers describe a
+                     * different world, so refuse rather than filter on them.
+                     * The village biome constraint is fine: that comes from
+                     * biome generation, which the two editions share. */
+                    if (c->tmask || c->areaMin || c->areaMax || c->subtype != SF_ANY)
+                        return -11;
                     /* Still need the Java config for the biome checks. */
                     if (!getStructureConfig(c->type, mc, &c->sconf))
                         return -3;

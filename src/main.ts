@@ -30,6 +30,8 @@ const threadsInput = $<HTMLInputElement>('threads');
 const searchBtn = $<HTMLButtonElement>('search');
 const stopBtn = $<HTMLButtonElement>('stop');
 const clearBtn = $<HTMLButtonElement>('clear');
+const checkBtn = $<HTMLButtonElement>('check');
+const checkSeedInput = $<HTMLInputElement>('check-seed');
 const errorEl = $<HTMLParagraphElement>('error');
 const progressPanel = $<HTMLElement>('progress-panel');
 const resultsEl = $<HTMLElement>('results');
@@ -231,8 +233,9 @@ async function main(): Promise<void> {
     if (changed) versionSel.value = String(DEFAULT_VERSION);
     editionHint.hidden = !bedrock;
     editionHint.textContent = bedrock
-      ? 'Bedrock seeds are 32-bit. Versions map to the equivalent Java generation.'
+      ? 'Bedrock seeds are 32-bit. Structure variant filters are Java only.'
       : '';
+    picker.setJavaOnlyAllowed(!bedrock);
     picker.render();
   };
 
@@ -251,6 +254,11 @@ async function main(): Promise<void> {
     }
 
     lastRadii = config.criteria.map((c) => c.radius);
+    // A new search starts a clean list, so old matches from a different query
+    // cannot sit alongside the new ones.
+    results = [];
+    resultsEl.replaceChildren();
+    sortNoteEl.hidden = true;
     startedAt = performance.now();
     statScanned.textContent = '0';
     statMatches.textContent = '0';
@@ -296,6 +304,65 @@ async function main(): Promise<void> {
     setRunning(true);
     startStatsTimer();
     pool.start(config);
+  });
+
+  checkBtn.addEventListener('click', () => {
+    showError(null);
+    const raw = checkSeedInput.value.trim();
+    if (raw === '') {
+      showError('Enter a seed to check.');
+      return;
+    }
+    let seed: bigint;
+    try {
+      seed = BigInt.asUintN(64, BigInt(raw));
+    } catch {
+      showError('That seed is not a whole number.');
+      return;
+    }
+
+    let config: SearchConfig;
+    try {
+      config = buildConfig(picker);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : String(err));
+      return;
+    }
+
+    pool?.stop();
+    lastRadii = config.criteria.map((c) => c.radius);
+    results = [];
+    resultsEl.replaceChildren();
+
+    let found: Match | null;
+    try {
+      found = meta!.inspect(seed, config.mc, config.edition, config.target, config.criteria, config.rules);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : String(err));
+      return;
+    }
+
+    progressPanel.hidden = false;
+    statScanned.textContent = '1';
+    statMatches.textContent = found ? '1' : '0';
+    statRate.textContent = '0';
+    barEl.hidden = true;
+
+    if (!found) {
+      sortNoteEl.hidden = true;
+      emptyEl.hidden = false;
+      statusEl.textContent =
+        'That seed does not satisfy everything you ticked. Loosen a distance or drop a criterion to see what it does have.';
+      statusEl.className = 'status warn';
+      return;
+    }
+    addMatches([found]);
+    statusEl.textContent = 'That seed matches everything you ticked.';
+    statusEl.className = 'status done';
+  });
+
+  checkSeedInput.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') checkBtn.click();
   });
 
   stopBtn.addEventListener('click', () => {

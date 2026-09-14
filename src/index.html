@@ -177,6 +177,19 @@
           </div>
         </details>
 
+        <div class="check-row">
+          <label class="field">
+            <span>Check one seed</span>
+            <span class="check-input">
+              <input id="check-seed" type="text" inputmode="numeric" placeholder="paste a seed" />
+              <button id="check" class="secondary small" type="button">Check</button>
+            </span>
+            <span class="field-hint">
+              Runs your ticked criteria against that seed and maps what it finds.
+            </span>
+          </label>
+        </div>
+
         <div class="actions">
           <button id="search" class="primary" type="button">Search seeds</button>
           <button id="stop" class="secondary" type="button" disabled>Stop</button>
@@ -266,9 +279,18 @@
           </li>
           <li>
             Bedrock searching covers 1.18 and later, since that is when both editions moved to the
-            same world generator. Fortresses and bastions share one region grid on Bedrock and
-            cannot be told apart by position; villages, outposts, mansions, igloos and ruined
-            portals have extra placement rules that can shift a result by a chunk.
+            same world generator. Structure positions are computed with Bedrock's own generator and
+            were checked against a reference implementation; the biome side assumes the two editions
+            still agree and that a 32-bit seed is used sign-extended, which is not verified against
+            the game. Fortresses and bastions share one region grid on Bedrock and cannot be told
+            apart by position; villages, outposts, mansions, igloos and ruined portals have extra
+            placement rules that can shift a result by a chunk.
+          </li>
+          <li>
+            Structure variant filters are Java only and are hidden when Bedrock is selected. Ruined
+            portal type and placement, bastion type, zombie villages, igloo basements and cracked
+            geodes all come from Java's RNG, so on Bedrock they would describe a different world.
+            Village biome type still works, because it comes from biome generation.
           </li>
           <li>Always verify a seed in-game before committing a world to it.</li>
         </ul>

@@ -130,6 +130,8 @@ export class SearchEngine {
         [-9]:
           'Bedrock searching needs 1.18 or later - that is when the two editions were unified onto the same world generator.',
         [-10]: 'One of the selected structures is not placed by the Bedrock generator.',
+        [-11]:
+          'That variant filter only works on Java. Bedrock rolls structure variants with a different generator, so the answer would not describe your world.',
       };
       throw new Error(messages[rc] ?? `Search could not be configured (code ${rc}).`);
     }
@@ -172,6 +174,26 @@ export class SearchEngine {
       scanned: this.m._sf_stat_scanned(),
       stage2: this.m._sf_stat_stage2(),
     };
+  }
+
+  /**
+   * Looks at one specific seed rather than searching for seeds.
+   *
+   * Runs the same criteria against a single seed and reports what it finds,
+   * so a seed can be checked instead of hunted for. Returns null when the
+   * seed does not satisfy everything asked of it.
+   */
+  inspect(
+    seed: bigint,
+    mc: number,
+    edition: Edition,
+    target: TargetMode,
+    criteria: readonly Criterion[],
+    rules: readonly ProximityRule[] = [],
+  ): Match | null {
+    this.configure(mc, edition, target, criteria, rules);
+    const { matches } = this.run(seed, 1, criteria);
+    return matches[0] ?? null;
   }
 
   /** Largest number of matches a single `run()` call can return. */

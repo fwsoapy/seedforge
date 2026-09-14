@@ -44,7 +44,10 @@ account and nothing leaves your machine.
   searchable alongside overworld structures.
 - **Java and Bedrock.** Bedrock places structures with a 32-bit Mersenne
   Twister instead of Java's LCG; both generators are implemented, and the
-  structure list narrows to what Bedrock actually places.
+  structure list narrows to what Bedrock actually places. Filters that only
+  make sense on Java are hidden rather than quietly answered wrong.
+- **Check a single seed.** Paste a seed instead of searching for one, and see
+  what your criteria find in it on the map.
 - **Version aware.** Pick anything from 1.7 to 26.2; the structure and biome
   lists change to match what actually exists in that version.
 - **Multi-threaded.** One Web Worker per logical CPU by default, each scanning
@@ -284,6 +287,9 @@ No. It is an unofficial fan tool, not affiliated with Mojang or Microsoft.
 Yes, for 1.18 and later. Bedrock places structures with a different generator
 to Java, and that generator is implemented here. Pick Bedrock from the edition
 dropdown and the structure list narrows to what Bedrock actually places.
+Structure variant filters, such as ruined portal placement or bastion type, are
+Java only and are hidden on Bedrock, because the values behind them come from
+Java's RNG.
 
 **How do I find a seed with a village near spawn?**
 Tick Village, set its distance to whatever you can walk, and search. Add a

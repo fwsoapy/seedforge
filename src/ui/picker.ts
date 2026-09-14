@@ -63,6 +63,9 @@ export class CriterionPicker {
   /** Proximity rules, holding criterion keys so they survive re-renders. */
   private rules: { a: string; b: string; maxDist: number }[] = [];
 
+  /** Set false on Bedrock, where getVariant-derived filters do not apply. */
+  private allowJavaOnly = true;
+
   constructor(
     private readonly structureRoot: HTMLElement,
     private readonly biomeRoot: HTMLElement,
@@ -76,6 +79,20 @@ export class CriterionPicker {
     this.addRuleBtn.addEventListener('click', () => this.addRule());
   }
 
+  /**
+   * Bedrock rolls structure variants with its own generator, so the filters
+   * cubiomes derives from Java's RNG are hidden and any selection cleared.
+   */
+  setJavaOnlyAllowed(allowed: boolean): void {
+    this.allowJavaOnly = allowed;
+  }
+
+  /** Groups that apply to the edition currently selected. */
+  private groupsFor(entry: Entry): readonly VariantGroup[] {
+    const groups = entry.variants ?? [];
+    return this.allowJavaOnly ? groups : groups.filter((g) => !g.javaOnly);
+  }
+
   /** Re-renders for the current version, dropping now-invalid selections. */
   render(): void {
     this.entries = [
@@ -85,7 +102,19 @@ export class CriterionPicker {
 
     const valid = new Set(this.entries.map((e) => key(e.kind, e.id)));
     for (const k of [...this.selected.keys()]) {
-      if (!valid.has(k)) this.selected.delete(k);
+      if (!valid.has(k)) {
+        this.selected.delete(k);
+        continue;
+      }
+      // Drop any choice whose group no longer applies, so switching edition
+      // cannot leave a filter set that the engine would refuse.
+      const entry = this.entries.find((e) => keyOf(e) === k);
+      const sel = this.selected.get(k);
+      if (!entry || !sel) continue;
+      const live = new Set(this.groupsFor(entry).map((g) => g.key));
+      for (const gk of Object.keys(sel.variants)) {
+        if (!live.has(gk)) delete sel.variants[gk];
+      }
     }
 
     this.structureRoot.replaceChildren(
@@ -181,7 +210,7 @@ export class CriterionPicker {
     const k = key(entry.kind, entry.id);
     if (on) {
       const variants: Record<string, string | null> = {};
-      for (const g of entry.variants ?? []) variants[g.key] = null;
+      for (const g of this.groupsFor(entry)) variants[g.key] = null;
       this.selected.set(k, { variants, radius: DEFAULT_RADIUS });
     } else {
       this.selected.delete(k);
@@ -220,7 +249,7 @@ export class CriterionPicker {
       tag.title = entry.dim === 'nether' ? 'Nether' : 'The End';
       chip.append(tag);
     }
-    if (entry.variants?.length) {
+    if (this.groupsFor(entry).length) {
       const dot = document.createElement('span');
       dot.className = 'chip-opts';
       dot.textContent = '•';
@@ -382,10 +411,11 @@ export class CriterionPicker {
       row.append(note);
     }
 
-    if (entry.variants?.length) {
+    const groups = this.groupsFor(entry);
+    if (groups.length) {
       const box = document.createElement('div');
       box.className = 'sel-variants';
-      for (const group of entry.variants) {
+      for (const group of groups) {
         box.append(this.variantControl(group, variants));
       }
       row.append(box);

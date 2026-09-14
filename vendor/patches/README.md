@@ -64,6 +64,25 @@ Biomes need no such work. Java and Bedrock terrain generation were unified in
 1.18 onto the same noise and climate system, so cubiomes' biome code is correct
 for Bedrock as-is - which is why Bedrock searching is gated to 1.18 and later.
 
+### What is verified, and what is assumed
+
+Worth separating, because the two halves of Bedrock support rest on very
+different footing.
+
+**Structure placement is verified.** The MT19937 and the region maths were
+checked against a reference implementation across 64 cases covering all 16
+supported structures, negative region coordinates and seeds near 2^32. All 64
+agreed. Positions can be trusted.
+
+**Biome checks rest on two assumptions.** The first is that Java and Bedrock
+share a generator from 1.18, which is why Bedrock is gated to 1.18 and later
+rather than offered for the whole version list. The second is that a Bedrock
+world seed, which is 32 bits, is used sign-extended to 64 bits for biome
+generation. That is the natural reading of a typed seed and what is
+implemented, but it is an assumption rather than something checked against the
+game. Anything downstream of a biome check on Bedrock, which includes whether
+a structure is viable at all, carries that caveat.
+
 ### Known limits
 
 - Nether fortresses and bastions share one region grid on Bedrock, so they
@@ -75,6 +94,13 @@ for Bedrock as-is - which is why Bedrock searching is gated to 1.18 and later.
   not implemented here.
 - Villages, outposts, mansions, igloos and ruined portals have extra placement
   rules on Bedrock that can shift the result by a chunk.
+- **Structure variant filters do not apply on Bedrock and are hidden there.**
+  cubiomes derives them in `getVariant()` from `chunkGenerateRnd`, which is
+  Java's LCG. Bedrock rolls the same choices with its own generator, so the
+  answer would describe a different world. This covers ruined portal type,
+  placement and template, bastion remnant type, zombie and size on villages,
+  igloo basements and cracked geodes. The village *biome* filter is unaffected,
+  because that comes from biome generation rather than from getVariant.
 
 ## Why the loot data is not wired up
 
