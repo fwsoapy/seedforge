@@ -25,7 +25,7 @@ mkdir -p "$OUT"
 rm -rf "$BUILD"
 mkdir -p "$(dirname "$BUILD")"
 cp -r "$UPSTREAM" "$BUILD"
-cp "$PATCHES/btree21_5.h" "$BUILD/tables/"
+cp "$PATCHES/btree21_5.h" "$PATCHES/btree262.h" "$BUILD/tables/"
 patch -s -p1 -d "$BUILD" < "$PATCHES/versions.patch"
 echo "applied vendor/patches/versions.patch"
 

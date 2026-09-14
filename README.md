@@ -30,8 +30,8 @@ account and nothing leaves your machine.
   "bastion within 300 blocks of the ruined portal" divides the portal's
   coordinates by 8 to find where it drops you, and measures from there.
 - **Biome criteria too.** Hunt for the deep dark (wardens and ancient cities),
-  lush caves, dripstone caves, mushroom fields, cherry groves, ice spikes and
-  more, alongside your structure picks.
+  sulfur caves, lush caves, dripstone caves, mushroom fields, cherry groves,
+  ice spikes and more, alongside your structure picks.
 - **Variant filters.** Village biome type (plains, desert, savanna, taiga,
   snowy) and zombie villages are exact. Ruined portals split into three
   independent selectors - type, placement and template. Bastion remnants filter
@@ -105,13 +105,8 @@ pinned submodule is never modified. What the patch covers:
 | 1.21.5 (Spring to Life) | Pale garden expansion, mansions in pale gardens. Uses its own biome tree. |
 | 1.21.6 - 1.21.11 | No world generation changes. |
 | 26.1 (Tiny Takeover) | No world generation changes. |
-| 26.2 (Chaos Cubed) | Added sulfur caves - **see below**. |
+| 26.2 (Chaos Cubed) | Added sulfur caves, which are searchable. |
 
-**26.2 caveat:** sulfur caves are not modelled. The biome tree that places them
-has not been published anywhere, so no open-source generator can produce them
-yet, this one included. Everything else on 26.2 generates correctly; deep
-underground biomes come out the same as 26.1. The app says so under the version
-selector when you pick it, rather than letting you find out later.
 
 
 | Version | Notable structures added |
@@ -254,8 +249,7 @@ Always verify a seed in-game before committing a world to it.
 
 - [x] Biome criteria alongside structures
 - [x] Per-criterion distances and proximity rules between structures
-- [x] Minecraft 26.x support
-- [ ] Sulfur caves (blocked on the 26.2 biome tree being published)
+- [x] Minecraft 26.x support, sulfur caves included
 - [ ] Ruined portal chest loot filtering (blocked: needs exact structure
       altitude to derive the chest's loot seed - see
       [`vendor/patches/README.md`](vendor/patches/README.md))

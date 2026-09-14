@@ -14,12 +14,14 @@ scratch copy, so `vendor/cubiomes` itself is never modified.
 | --- | --- |
 | `versions.patch` | Extends the version enum to 26.2, selects the 1.21.5 biome tree, adds the `sulfur_caves` biome and its noise parameter range, and lets woodland mansions generate in pale gardens from 1.21.5. Version name strings in `util.c` are left alone; nothing here reads them. |
 | `btree21_5.h` | The 1.21.5+ biome tree table. Generated data - it cannot be written by hand. |
+| `btree262.h` | The 26.2 biome tree table, which is what actually places sulfur caves. |
 | `portal_templates_data.json` | Ruined portal template layouts, including the chest offset within each template. **Staged, not used - see below.** |
 | `loot_data/*.json` | Vanilla chest loot tables per version. **Staged, not used - see below.** |
 
-The table and data files come from
-[EZ Seed Finder](https://github.com/codingsushi79/ezseedfinder) (MIT), which
-maintains a patched Cubiomes ahead of upstream. `versions.patch` is written for
+`btree21_5.h` and the loot data come from
+[EZ Seed Finder](https://github.com/codingsushi79/ezseedfinder) (MIT).
+`btree262.h` originates from the SeedMapper cubiomes fork, by way of
+[MCBE-seedcracker](https://github.com/Alist2930/MCBE-seedcracker). `versions.patch` is written for
 this repository against the pinned submodule commit.
 
 ## What the version changes actually do
@@ -30,7 +32,10 @@ this repository against the pinned submodule commit.
   mansions to generate in it. It uses its own biome tree, hence `btree21_5.h`.
 - **1.21.6 - 1.21.11** changed nothing about world generation.
 - **26.1** (Tiny Takeover) changed nothing about world generation.
-- **26.2** (Chaos Cubed) added the `sulfur_caves` biome.
+- **26.2** (Chaos Cubed) added the `sulfur_caves` biome, and its own biome
+  tree to place it. Declaring the biome id is not enough on its own: without
+  `btree262.h` the generator uses the 1.21.5 tree and can never emit sulfur
+  caves, however many seeds you scan.
 
 When upstream Cubiomes catches up, drop these patches and bump the submodule.
 

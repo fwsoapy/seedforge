@@ -5,6 +5,7 @@ export const BIOME = {
   dripstone_caves: 174,
   lush_caves: 175,
   deep_dark: 183,
+  sulfur_caves: 187,
   mangrove_swamp: 184,
   cherry_grove: 185,
   pale_garden: 186,
@@ -52,6 +53,7 @@ export interface BiomeDef {
  */
 export const SEARCHABLE_BIOMES: readonly BiomeDef[] = [
   { id: BIOME.deep_dark, name: 'Deep dark', sampleY: -52, note: 'Where ancient cities and wardens live' },
+  { id: BIOME.sulfur_caves, name: 'Sulfur caves', sampleY: -16, note: 'Added in 26.2, home to sulfur cubes' },
   { id: BIOME.lush_caves, name: 'Lush caves', sampleY: -32 },
   { id: BIOME.dripstone_caves, name: 'Dripstone caves', sampleY: -32 },
   { id: BIOME.mushroom_fields, name: 'Mushroom fields', sampleY: 63 },

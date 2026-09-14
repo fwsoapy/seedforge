@@ -264,6 +264,22 @@ describe('version range', () => {
     expect(M._sf_biome_supported(SULFUR_CAVES, MC_26_2)).not.toBe(0);
   });
 
+  it('actually generates sulfur caves on 26.2', () => {
+    // Declaring the biome exists is not enough - the 26.2 biome tree has to be
+    // in use, or the generator can never emit it. This failed before the
+    // btree262 table was added.
+    const found = search(
+      MC_26_2, 0, 0,
+      [[K_BIOME, 0, SULFUR_CAVES, 0, 0, 0, 0, -16, 500]],
+      0n, 200,
+    );
+    expect(found.length).toBeGreaterThan(0);
+    for (const f of found) {
+      expect(f.hits[0]!.biome).toBe(SULFUR_CAVES);
+      expect(Math.hypot(f.hits[0]!.x, f.hits[0]!.z)).toBeLessThanOrEqual(500);
+    }
+  });
+
   it('uses a different biome tree from 1.21.5 onwards', () => {
     // Spring to Life expanded the pale garden, which means a different biome
     // tree. The same query over the same seeds has to give different answers,
@@ -279,7 +295,9 @@ describe('version range', () => {
     expect(after).not.toEqual(before);
   });
 
-  it('treats 26.1 and 26.2 as the 1.21.5 generation they are', () => {
+  it('leaves surface biomes alone from 1.21.5 through 26.2', () => {
+    // 26.1 changed nothing, and 26.2 only added sulfur caves underground, so
+    // a surface biome has to come out identical across all three.
     const paleGarden = (mc: number) =>
       search(mc, 0, 0, [[K_BIOME, 0, PALE_GARDEN, 0, 0, 0, 0, 80, 400]], 0n, 900)
         .map((f) => f.seed.toString());
