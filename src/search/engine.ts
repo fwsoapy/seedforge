@@ -119,7 +119,7 @@ export class SearchEngine {
         [-6]: 'Ran out of memory setting up the biome search.',
         [-7]: 'A proximity rule refers to a structure that is not selected.',
         [-8]:
-          'A proximity rule links two different dimensions. Distances are only meaningful between structures in the same dimension.',
+          'A proximity rule reaches into the End, which has no coordinate link to the Overworld or the Nether.',
       };
       throw new Error(messages[rc] ?? `Search could not be configured (code ${rc}).`);
     }

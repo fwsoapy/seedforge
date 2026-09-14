@@ -333,10 +333,49 @@ describe('proximity rules', () => {
     expect(over.length).toBeGreaterThan(0);
   });
 
-  it('rejects a rule spanning two dimensions', () => {
+  it('measures an overworld/nether rule in nether coordinates', () => {
+    // "a bastion within 300 blocks of where this ruined portal drops me":
+    // the overworld portal's position is divided by 8 and the distance is
+    // taken from that point, in nether blocks.
+    const crits = [
+      [K_STRUCT, STRUCT.Ruined_Portal, -1, 0, 0, 0, 0, 0, 600],
+      [K_STRUCT, STRUCT.Bastion, -1, 0, 0, 0, 0, 0, 2_000],
+    ];
+    const found = search(MC_1_21_1, 0, 0, crits, 0n, 80_000, [[0, 1, 300]]);
+    expect(found.length).toBeGreaterThan(0);
+
+    const netherSide = (v: number) => Math.floor(v / 8);
+    for (const f of found) {
+      const portal = f.hits[0]!;
+      const bastion = f.hits[1]!;
+      expect(portal.dim).toBe(0);
+      expect(bastion.dim).toBe(-1);
+      const d = Math.hypot(
+        netherSide(portal.x) - bastion.x,
+        netherSide(portal.z) - bastion.z,
+      );
+      expect(d).toBeLessThanOrEqual(300);
+    }
+  });
+
+  it('makes the overworld/nether rule actually bite', () => {
+    const crits = [
+      [K_STRUCT, STRUCT.Ruined_Portal, -1, 0, 0, 0, 0, 0, 600],
+      [K_STRUCT, STRUCT.Bastion, -1, 0, 0, 0, 0, 0, 2_000],
+    ];
+    const loose = search(MC_1_21_1, 0, 0, crits, 0n, 80_000);
+    const netherSide = (v: number) => Math.floor(v / 8);
+    const wouldFail = loose.filter((f) => {
+      const p = f.hits[0]!, b = f.hits[1]!;
+      return Math.hypot(netherSide(p.x) - b.x, netherSide(p.z) - b.z) > 300;
+    });
+    expect(wouldFail.length).toBeGreaterThan(0);
+  });
+
+  it('rejects a rule reaching into the End', () => {
     const flat = [
       [K_STRUCT, STRUCT.Village, -1, 0, 0, 0, 0, 0, 500, -1],
-      [K_STRUCT, STRUCT.Bastion, -1, 0, 0, 0, 0, 0, 500, -1],
+      [K_STRUCT, STRUCT.End_City, -1, 0, 0, 0, 0, 0, 5_000, -1],
     ].flat();
     M.HEAP32.set(flat, critPtr >> 2);
     M.HEAP32.set([0, 1, 100], pairPtr >> 2);

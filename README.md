@@ -26,7 +26,9 @@ account and nothing leaves your machine.
   within 100 blocks, ruined portal within 500" is one search, not a compromise.
 - **Proximity rules.** Require two picks to generate near each other -
   "ruined portal within 100 blocks of the village" - on top of their own
-  distances from spawn.
+  distances from spawn. These work across the Overworld and the Nether too:
+  "bastion within 300 blocks of the ruined portal" divides the portal's
+  coordinates by 8 to find where it drops you, and measures from there.
 - **Biome criteria too.** Hunt for the deep dark (wardens and ancient cities),
   lush caves, dripstone caves, mushroom fields, cherry groves, ice spikes and
   more, alongside your structure picks.
@@ -227,9 +229,10 @@ suspects.
 - Stronghold **portal room orientation and library presence are not
   filterable**. Those depend on the stronghold's internal piece layout, which
   Cubiomes does not generate, so there is no honest way to offer them.
-- Proximity rules only work between structures in the **same dimension**.
-  Nether and overworld coordinates are not comparable, so such a rule is
-  rejected rather than silently measured wrong.
+- Proximity rules work within a dimension, and between the Overworld and the
+  Nether - the Overworld side is divided by 8 and the rule is measured in
+  Nether blocks. Rules reaching into the **End** are rejected, because End
+  coordinates have no correspondence to the other dimensions.
 - **Ravines and individual caves are not searchable.** They are carvers, cut
   into terrain per chunk during world generation, not region-grid structures,
   and Cubiomes does not model them. The closest available thing is the **lush

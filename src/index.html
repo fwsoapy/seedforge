@@ -70,6 +70,7 @@
             <h2>Proximity rules</h2>
             <p class="hint">
               Extra conditions between two picks, on top of their own distance from spawn.
+              Overworld to Nether works too, measured in Nether blocks.
             </p>
           </div>
           <div id="rules-list" class="rules-list"></div>
@@ -169,9 +170,10 @@
             caves and dripstone caves biome criteria are the closest available thing.
           </li>
           <li>
-            Proximity rules only apply between structures in the same dimension. Nether and
-            overworld coordinates are not comparable, so such a rule is rejected rather than
-            measured wrongly.
+            Proximity rules work within a dimension, and between the Overworld and the Nether -
+            the Overworld side is divided by 8 and the rule is measured in Nether blocks. Rules
+            reaching into the End are rejected, since End coordinates do not correspond to the
+            other dimensions.
           </li>
           <li>
             Stronghold filters cover position and ring only. What is inside a stronghold - portal

@@ -119,14 +119,33 @@ export class CriterionPicker {
     return this.entries.find((e) => keyOf(e) === key)?.dim ?? 'overworld';
   }
 
+  /**
+   * Can a distance between these two be measured at all?
+   *
+   * Same dimension always works. Overworld and Nether work too: Nether
+   * coordinates are 1:8, so the Overworld side is divided by 8 and the rule
+   * is measured in Nether blocks - which is exactly what you want for
+   * "a bastion near where this portal drops me". The End has no such
+   * correspondence, so rules crossing into it are not measurable.
+   */
+  private measurable(a: string, b: string): boolean {
+    const da = this.dimOf(a);
+    const db = this.dimOf(b);
+    if (da === db) return true;
+    return da !== 'end' && db !== 'end';
+  }
+
+  /** True when the rule is measured in Nether blocks rather than Overworld ones. */
+  private isNetherScaled(a: string, b: string): boolean {
+    return this.dimOf(a) !== this.dimOf(b) && this.measurable(a, b);
+  }
+
   private addRule(): void {
     const keys = [...this.selected.keys()];
     if (keys.length < 2) return;
-    // Default to the first pair that shares a dimension, since a distance
-    // between an overworld and a nether structure is not a real measurement.
     for (const a of keys) {
       for (const b of keys) {
-        if (a === b || this.dimOf(a) !== this.dimOf(b)) continue;
+        if (a === b || !this.measurable(a, b)) continue;
         if (this.rules.some((r) => (r.a === a && r.b === b) || (r.a === b && r.b === a))) continue;
         this.rules.push({ a, b, maxDist: 200 });
         this.renderSelected();
@@ -256,7 +275,7 @@ export class CriterionPicker {
 
     const of = document.createElement('span');
     of.className = 'rule-text';
-    of.textContent = 'blocks of';
+    of.textContent = this.isNetherScaled(rule.a, rule.b) ? 'Nether blocks of' : 'blocks of';
 
     const b = pick('b');
 
@@ -273,12 +292,21 @@ export class CriterionPicker {
 
     row.append(a, within, dist, of, b, remove);
 
-    if (this.dimOf(rule.a) !== this.dimOf(rule.b)) {
+    if (!this.measurable(rule.a, rule.b)) {
       const warn = document.createElement('p');
       warn.className = 'rule-warn';
       warn.textContent =
-        'These are in different dimensions - their coordinates are not comparable, so this rule cannot be applied.';
+        'The End has no coordinate link to the other dimensions, so this distance cannot be measured.';
       row.append(warn);
+    } else if (this.isNetherScaled(rule.a, rule.b)) {
+      const ow = this.dimOf(rule.a) === 'overworld' ? rule.a : rule.b;
+      const name = this.entries.find((e) => keyOf(e) === ow)?.name ?? 'the overworld structure';
+      const note = document.createElement('p');
+      note.className = 'rule-note';
+      note.textContent =
+        `Measured in the Nether: ${name}'s coordinates are divided by 8 to get where a portal ` +
+        'there would drop you, and the distance is taken from that point.';
+      row.append(note);
     }
     return row;
   }

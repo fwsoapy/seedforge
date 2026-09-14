@@ -90,11 +90,19 @@ typedef struct
     int hasconf;
 } Crit;
 
-/* "structure A must be within maxDist blocks of structure B" */
+/*
+ * "structure A must be within maxDist blocks of structure B"
+ *
+ * A rule may span the Overworld and the Nether, which is the useful case for
+ * things like "a bastion near where this ruined portal drops you". Nether
+ * coordinates are 1:8, so the Overworld side is divided by 8 and the whole
+ * rule is measured in Nether blocks. `scaleA`/`scaleB` hold that divisor.
+ */
 typedef struct
 {
     int a, b;
     int maxDist;
+    int scaleA, scaleB;
 } Pair;
 
 static Generator g_gen[3];      /* indexed by dim + 1 */
@@ -291,10 +299,17 @@ int sf_configure(int mc, int target, const int32_t *crit, int ncrit,
         }
         if (ia < 0 || ib < 0)
             return -7;
-        /* Distances only mean anything between structures in the same
-         * dimension - nether and overworld coordinates are not comparable. */
-        if (g_crit[ia].dim != g_crit[ib].dim)
-            return -8;
+        {
+            int da = g_crit[ia].dim, db = g_crit[ib].dim;
+            /* The End has no coordinate correspondence with the other two
+             * dimensions, so a rule crossing into it is meaningless. */
+            if (da != db && (da == DIM_END || db == DIM_END))
+                return -8;
+            /* Overworld <-> Nether is measured in Nether blocks, so the
+             * Overworld side gets divided by 8. */
+            g_pair[i].scaleA = (da != db && da == DIM_OVERWORLD) ? 8 : 1;
+            g_pair[i].scaleB = (da != db && db == DIM_OVERWORLD) ? 8 : 1;
+        }
         g_pair[i].a = ia;
         g_pair[i].b = ib;
         g_pair[i].maxDist = pairs[i * SF_PAIR_INTS + 2];
@@ -641,8 +656,12 @@ static int sf_pairs_ok(int upto)
         int64_t dx, dz;
         if (pr->a > upto || pr->b > upto)
             continue; /* not decided yet */
-        dx = (int64_t) g_chosen[pr->a].x - g_chosen[pr->b].x;
-        dz = (int64_t) g_chosen[pr->a].z - g_chosen[pr->b].z;
+        /* floordiv, not truncation, so the scaling is right on both sides of
+         * the axes. */
+        dx = floordiv(g_chosen[pr->a].x, pr->scaleA)
+           - floordiv(g_chosen[pr->b].x, pr->scaleB);
+        dz = floordiv(g_chosen[pr->a].z, pr->scaleA)
+           - floordiv(g_chosen[pr->b].z, pr->scaleB);
         if (dx * dx + dz * dz > (int64_t) pr->maxDist * pr->maxDist)
             return 0;
     }
@@ -719,8 +738,8 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
                 continue; /* biome criteria have no cheap positional stage */
             if (c->dim == DIM_NETHER)
             {   /* nether structures are filtered in nether coordinates */
-                ccx = cx / 8;
-                ccz = cz / 8;
+                ccx = (int) floordiv(cx, 8);
+                ccz = (int) floordiv(cz, 8);
             }
             if (sf_candidates(c, seed, ccx, ccz, rr, hits) == 0)
             {
@@ -797,8 +816,8 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
                 int ccx = cx, ccz = cz;
                 if (c->dim == DIM_NETHER)
                 {
-                    ccx = cx / 8;
-                    ccz = cz / 8;
+                    ccx = (int) floordiv(cx, 8);
+                    ccz = (int) floordiv(cz, 8);
                 }
                 g_ncand[k] = sf_collect(c, seed, ccx, ccz, c->radius,
                                         g_cand[k], g_candbiome[k], want);
