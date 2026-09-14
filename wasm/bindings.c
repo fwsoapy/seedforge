@@ -63,6 +63,24 @@
  * spawn while returning identical results.
  */
 
+/*
+ * Spawn calculations allowed in one sf_run() call.
+ *
+ * The output cap bounds how many MATCHES a call returns, but not how much work
+ * it does: a seed can pass the cheap check, pay for a spawn calculation, then
+ * fail the check around that spawn and never count towards the cap. With an
+ * origin scan reaching tens of thousands of seeds a second, the caller sizes
+ * its blocks for that rate, and a block that then turns out to be dense in
+ * near-misses can spend tens of seconds inside a single call. That call cannot
+ * be interrupted, so progress stops and a stop request waits on it.
+ *
+ * Bounding the expensive work instead keeps a call near the caller's target of
+ * roughly 100ms, since a spawn calculation costs about 4.5ms. Stopping early
+ * is safe: sf_run() reports how many seeds it actually scanned and the caller
+ * advances by that, so the rest are simply picked up next call.
+ */
+#define SF_SPAWN_BUDGET 24
+
 /* Variant trait bits (see getVariant()). */
 #define SF_TRAIT_ABANDONED   (1u << 0)  /* zombie village */
 #define SF_TRAIT_GIANT       (1u << 1)  /* giant ruined portal */
@@ -992,6 +1010,7 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
            int32_t *outSpawn, int maxOut)
 {
     int found = 0;
+    int spawns = 0;    /* expensive spawn calculations used by this call */
     int i, k;
     Pos hits[SF_MAX_HITS];
 
@@ -1006,6 +1025,11 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
         uint64_t seed = start + (uint64_t) i;
         int pass = 1;
         int cx = 0, cz = 0;
+
+        /* Leave the rest of the block to the next call rather than running on
+         * past the point where this one can still report in good time. */
+        if (spawns >= SF_SPAWN_BUDGET)
+            break;
 
         /* A Bedrock world seed is a full 64-bit value, exactly like Java's.
          * The split is in what reads it: structure placement uses only the low
@@ -1081,11 +1105,13 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
         {
             Pos sp = estimateSpawn(sf_gen(DIM_OVERWORLD), NULL);
             cx = sp.x; cz = sp.z;
+            spawns++;
         }
         else if (g_target == SF_TARGET_EXACT)
         {
             Pos sp = getSpawn(sf_gen(DIM_OVERWORLD));
             cx = sp.x; cz = sp.z;
+            spawns++;
         }
         else
         {
@@ -1103,6 +1129,7 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
             Pos sp = getSpawn(sf_gen(DIM_OVERWORLD));
             cx = sp.x;
             cz = sp.z;
+            spawns++;
             if (!sf_place(seed, cx, cz, 0))
                 continue;
         }

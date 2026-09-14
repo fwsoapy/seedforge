@@ -26,21 +26,80 @@ interface Palette {
 }
 
 /**
- * Card maps, so a theme change can repaint them.
+ * Card maps.
  *
- * Canvas pixels are not styled by CSS: a map drawn under one palette keeps
- * those colours until something redraws it. Cards are replaced wholesale on a
- * new search, so entries are dropped once their canvas leaves the document
- * rather than tracked by the caller.
+ * Two jobs. Canvas pixels are not styled by CSS, so a theme change has to
+ * repaint them. And drawing one is expensive: during a search the list is
+ * rebuilt several times a second, and at a few hundred matches redrawing every
+ * map on every rebuild froze the page for over a second at a time. So a map is
+ * drawn only once it scrolls into view, which in practice means a handful
+ * rather than the whole list.
  */
-const cardMaps = new Set<{ canvas: HTMLCanvasElement; paint: () => void }>();
+interface CardMap {
+  canvas: HTMLCanvasElement;
+  paint: () => void;
+  painted: boolean;
+}
 
-/** Repaints every card map that is still on the page. */
+const cardMaps = new Set<CardMap>();
+const mapOf = new WeakMap<Element, CardMap>();
+
+/** Undefined where IntersectionObserver is missing, e.g. under a test runner. */
+const mapWatcher =
+  typeof IntersectionObserver === 'undefined'
+    ? undefined
+    : new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue;
+            const card = mapOf.get(e.target);
+            if (card && !card.painted) {
+              card.paint();
+              card.painted = true;
+            }
+          }
+        },
+        // Start drawing slightly before a card reaches the viewport, so
+        // scrolling does not reveal a blank square.
+        { rootMargin: '300px' },
+      );
+
+function watchMap(card: CardMap): void {
+  cardMaps.add(card);
+  if (!mapWatcher) {
+    card.paint();
+    card.painted = true;
+    return;
+  }
+  mapOf.set(card.canvas, card);
+  mapWatcher.observe(card.canvas);
+}
+
+/** Repaints the card maps that have actually been drawn. */
 export function repaintMaps(): void {
   for (const entry of [...cardMaps]) {
-    if (!entry.canvas.isConnected) cardMaps.delete(entry);
-    else entry.paint();
+    if (!entry.canvas.isConnected) forget(entry);
+    else if (entry.painted) entry.paint();
   }
+}
+
+/**
+ * Drops entries whose canvas has left the document.
+ *
+ * The result list is rebuilt wholesale several times a second during a search,
+ * so without this the registry grows by a full listful every time and keeps
+ * every detached canvas alive with it.
+ */
+export function pruneMaps(): void {
+  for (const entry of [...cardMaps]) {
+    if (!entry.canvas.isConnected) forget(entry);
+  }
+}
+
+function forget(entry: CardMap): void {
+  cardMaps.delete(entry);
+  mapWatcher?.unobserve(entry.canvas);
+  mapOf.delete(entry.canvas);
 }
 
 function palette(): Palette {
@@ -503,8 +562,12 @@ export function renderResult(m: Match, radii: readonly number[]): HTMLElement {
   const paint = (): void => {
     plotted = drawMap(canvas, m, radii, { size: MAP_SIZE, zoom: 1, panX: 0, panY: 0 });
   };
-  paint();
-  cardMaps.add({ canvas, paint });
+  // Sized up front so the card does not resize when its map is drawn.
+  canvas.width = MAP_SIZE;
+  canvas.height = MAP_SIZE;
+  canvas.style.width = `${MAP_SIZE}px`;
+  canvas.style.height = `${MAP_SIZE}px`;
+  watchMap({ canvas, paint, painted: false });
 
   const tip = document.createElement('div');
   tip.className = 'map-tip';

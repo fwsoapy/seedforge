@@ -14,7 +14,7 @@ import { sortByCloseness } from './search/score';
 import { EDITION, KIND, TARGET, type CriterionKind, type Edition, type Match, type SearchConfig, type TargetMode } from './search/types';
 import { CriterionPicker } from './ui/picker';
 import { initTheme } from './ui/theme';
-import { renderResult, repaintMaps } from './ui/results';
+import { pruneMaps, renderResult, repaintMaps } from './ui/results';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -70,6 +70,8 @@ let pausedMs = 0;
 let pausedAt = 0;
 /** Every match found in the current search, kept so they can be re-sorted. */
 let results: Match[] = [];
+/** Set when new matches have arrived but the list has not been rebuilt yet. */
+let resultsDirty = false;
 /** Drives the stats readout independently of how often workers report. */
 let statsTimer: number | null = null;
 
@@ -137,6 +139,7 @@ function buildConfig(picker: CriterionPicker): SearchConfig {
 
 /** Repaints the stats readout from the latest recorded totals. */
 function refreshStats(): void {
+  flushResults();
   statScanned.textContent = nf.format(lastScanned);
   statMatches.textContent = nf.format(lastMatches);
   // Paused time is excluded, otherwise the rate decays while nothing is
@@ -189,17 +192,35 @@ function reportDone(matches: number, scanned: number, limit: number, stopped: bo
   statusEl.className = 'status done';
 }
 
-/** Re-renders the whole list, closest match first. */
+/**
+ * Rebuilds the result list, closest match first.
+ *
+ * Every card is built fresh because the list is kept sorted by closeness, so
+ * a new match can land anywhere in it. Each card also draws a map, which makes
+ * this far too expensive to run once per batch of matches: several workers
+ * reporting at once turned into several full redraws a second, and with a
+ * large match limit that is hundreds of canvases per redraw. It froze the page
+ * for seconds at a time. Hence renderResults() is never called directly from
+ * the match handler; `resultsDirty` marks it and the stats timer flushes it at
+ * most four times a second.
+ */
 function renderResults(): void {
+  resultsDirty = false;
   emptyEl.hidden = results.length > 0;
   sortNoteEl.hidden = results.length === 0;
   sortByCloseness(results);
   resultsEl.replaceChildren(...results.map((m) => renderResult(m, lastRadii)));
+  // The cards just replaced are detached now, so their map entries can go.
+  pruneMaps();
+}
+
+function flushResults(): void {
+  if (resultsDirty) renderResults();
 }
 
 function addMatches(matches: Match[]): void {
   results.push(...matches);
-  renderResults();
+  resultsDirty = true;
 }
 
 async function main(): Promise<void> {
@@ -361,6 +382,7 @@ async function main(): Promise<void> {
     // A new search starts a clean list, so old matches from a different query
     // cannot sit alongside the new ones.
     results = [];
+    resultsDirty = false;
     resultsEl.replaceChildren();
     sortNoteEl.hidden = true;
     startedAt = performance.now();
@@ -400,6 +422,7 @@ async function main(): Promise<void> {
           }
           stopStatsTimer();
           refreshStats();
+          flushResults();
           setRunning(false);
           hintEl.hidden = true;
           reportDone(lastMatches, lastScanned, config.matchLimit, stopRequested);

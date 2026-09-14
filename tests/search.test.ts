@@ -72,21 +72,33 @@ function search(
   );
   expect(rc).toBe(crits.length);
 
-  const n = M._sf_run(start, count, seedsPtr, dataPtr, spawnPtr, MAX_OUT);
-  const seeds = new BigUint64Array(M.HEAPU8.buffer, seedsPtr, MAX_OUT);
+  // sf_run() can return before scanning the whole range: it stops when its
+  // output fills, and also once it has spent its budget of spawn calculations,
+  // so that a single call cannot run away. Loop like the worker does, picking
+  // up from however far it actually got.
   const out: Found[] = [];
-  for (let i = 0; i < n; i++) {
-    const hits: Hit[] = [];
-    for (let k = 0; k < crits.length; k++) {
-      const b = (dataPtr >> 2) + (i * maxCrit + k) * 4;
-      hits.push({ x: M.HEAP32[b], z: M.HEAP32[b + 1], biome: M.HEAP32[b + 2], dim: M.HEAP32[b + 3] });
+  let scanned = 0;
+  while (scanned < count && out.length < MAX_OUT) {
+    const n = M._sf_run(
+      start + BigInt(scanned), count - scanned, seedsPtr, dataPtr, spawnPtr, MAX_OUT - out.length,
+    );
+    const seeds = new BigUint64Array(M.HEAPU8.buffer, seedsPtr, MAX_OUT);
+    for (let i = 0; i < n; i++) {
+      const hits: Hit[] = [];
+      for (let k = 0; k < crits.length; k++) {
+        const b = (dataPtr >> 2) + (i * maxCrit + k) * 4;
+        hits.push({ x: M.HEAP32[b], z: M.HEAP32[b + 1], biome: M.HEAP32[b + 2], dim: M.HEAP32[b + 3] });
+      }
+      out.push({
+        seed: seeds[i]!,
+        spawnX: M.HEAP32[(spawnPtr >> 2) + i * 2],
+        spawnZ: M.HEAP32[(spawnPtr >> 2) + i * 2 + 1],
+        hits,
+      });
     }
-    out.push({
-      seed: seeds[i]!,
-      spawnX: M.HEAP32[(spawnPtr >> 2) + i * 2],
-      spawnZ: M.HEAP32[(spawnPtr >> 2) + i * 2 + 1],
-      hits,
-    });
+    const justScanned = M._sf_stat_scanned();
+    if (justScanned <= 0) break;
+    scanned += justScanned;
   }
   return out;
 }
