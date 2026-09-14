@@ -19,8 +19,9 @@ describe('biome catalogue', () => {
     // Biomes are three-dimensional from 1.18 on. A cave biome sampled at the
     // surface, or a peak sampled at y=63, simply never turns up - the search
     // looks like it works and silently returns nothing.
+    const caves = ['Deep dark', 'Sulfur caves', 'Lush caves', 'Dripstone caves'];
     for (const b of SEARCHABLE_BIOMES) {
-      if (b.group === 'cave') {
+      if (caves.includes(b.name)) {
         expect(b.sampleY, `${b.name} should be sampled underground`).toBeLessThan(0);
       } else {
         expect(b.sampleY, `${b.name} should be sampled above sea level`).toBeGreaterThan(0);
@@ -28,8 +29,15 @@ describe('biome catalogue', () => {
     }
   });
 
+  it('keeps the list short enough to scan', () => {
+    expect(SEARCHABLE_BIOMES.length).toBeLessThanOrEqual(32);
+    for (const group of BIOME_GROUPS) {
+      expect(SEARCHABLE_BIOMES.some((b) => b.group === group.key)).toBe(true);
+    }
+  });
+
   it('samples peaks high enough to exist', () => {
-    for (const name of ['Jagged peaks', 'Frozen peaks']) {
+    for (const name of ['Jagged peaks']) {
       const b = SEARCHABLE_BIOMES.find((x) => x.name === name)!;
       expect(b.sampleY, `${name}`).toBeGreaterThanOrEqual(150);
     }
@@ -45,7 +53,7 @@ describe('biome catalogue', () => {
     const names = SEARCHABLE_BIOMES.map((b) => b.name);
     for (const expected of [
       'Plains', 'Forest', 'Birch forest', 'Dark forest', 'Taiga', 'Desert',
-      'Savanna', 'Swamp', 'Jungle', 'Ocean', 'River', 'Beach', 'Snowy plains',
+      'Savanna', 'Swamp', 'Jungle', 'Ocean', 'Beach', 'Snowy plains',
     ]) {
       expect(names, `missing ${expected}`).toContain(expected);
     }

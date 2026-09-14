@@ -29,10 +29,10 @@ account and nothing leaves your machine.
   distances from spawn. These work across the Overworld and the Nether too:
   "bastion within 300 blocks of the ruined portal" divides the portal's
   coordinates by 8 to find where it drops you, and measures from there.
-- **Biome criteria too.** Over 50 biomes, from the everyday (plains, forest,
-  birch forest, taiga, desert, ocean, river) to the ones worth hunting for
-  (deep dark, sulfur caves, mushroom fields, cherry grove, ice spikes),
-  grouped so the list stays readable and searchable alongside structures.
+- **Biome criteria too.** Split into Popular (plains, forest, birch forest,
+  dark forest, taiga, desert, savanna, jungle, swamp, ocean, beach and friends)
+  and Exotic (deep dark, sulfur caves, lush caves, mushroom fields, cherry
+  grove, ice spikes, pale garden, badlands), searchable alongside structures.
 - **Variant filters.** Village biome type (plains, desert, savanna, taiga,
   snowy) and zombie villages are exact. Ruined portals split into three
   independent selectors - type, placement and template. Bastion remnants filter
