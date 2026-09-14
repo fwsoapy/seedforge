@@ -12,20 +12,14 @@ export interface McVersion {
   readonly id: number;
   /** Label shown in the version dropdown. */
   readonly label: string;
-  /** Caveat shown under the selector when this version is chosen. */
-  readonly note?: string;
 }
 
-const SULFUR_NOTE =
-  'Sulfur caves, added in 26.2, are not modelled - the biome tree for them has not been ' +
-  'published. Everything else generates correctly; deep underground biomes match 26.1.';
-
 export const MC_VERSIONS: readonly McVersion[] = [
-  { id: 39, label: '26.2 (Chaos Cubed)', note: SULFUR_NOTE },
-  { id: 36, label: '26.1 (Tiny Takeover)' },
+  { id: 39, label: '26.2' },
+  { id: 36, label: '26.1' },
   { id: 35, label: '1.21.11' },
-  { id: 29, label: '1.21.5 (Spring to Life)' },
-  { id: 28, label: '1.21.4 (Garden Awakens)' },
+  { id: 29, label: '1.21.5' },
+  { id: 28, label: '1.21.4' },
   { id: 27, label: '1.21.3' },
   { id: 26, label: '1.21.1' },
   { id: 25, label: '1.20' },
@@ -51,8 +45,4 @@ export const DEFAULT_VERSION = 39;
 
 export function versionLabel(id: number): string {
   return MC_VERSIONS.find((v) => v.id === id)?.label ?? `MC #${id}`;
-}
-
-export function versionNote(id: number): string | null {
-  return MC_VERSIONS.find((v) => v.id === id)?.note ?? null;
 }

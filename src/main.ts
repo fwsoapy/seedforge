@@ -6,7 +6,7 @@
  * workers so the UI never blocks.
  */
 
-import { DEFAULT_VERSION, MC_VERSIONS, versionNote } from './data/versions';
+import { DEFAULT_VERSION, MC_VERSIONS } from './data/versions';
 import { SearchEngine } from './search/engine';
 import { SearchPool, suggestedWorkerCount } from './search/pool';
 import { KIND, type CriterionKind, type Match, type SearchConfig, type TargetMode } from './search/types';
@@ -20,7 +20,6 @@ const $ = <T extends HTMLElement>(id: string): T => {
 };
 
 const versionSel = $<HTMLSelectElement>('version');
-const versionNoteEl = $<HTMLElement>('version-note');
 const targetSel = $<HTMLSelectElement>('target');
 const startSeedInput = $<HTMLInputElement>('start-seed');
 const matchLimitInput = $<HTMLInputElement>('match-limit');
@@ -174,17 +173,7 @@ async function main(): Promise<void> {
   );
   picker.render();
 
-  const showVersionNote = (): void => {
-    const note = versionNote(Number(versionSel.value));
-    versionNoteEl.textContent = note ?? '';
-    versionNoteEl.hidden = note === null;
-  };
-  showVersionNote();
-
-  versionSel.addEventListener('change', () => {
-    picker.render();
-    showVersionNote();
-  });
+  versionSel.addEventListener('change', () => picker.render());
 
   searchBtn.addEventListener('click', () => {
     showError(null);
