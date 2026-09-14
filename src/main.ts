@@ -9,6 +9,7 @@
 import { DEFAULT_VERSION, MC_VERSIONS } from './data/versions';
 import { SearchEngine } from './search/engine';
 import { SearchPool, suggestedWorkerCount } from './search/pool';
+import { sortByCloseness } from './search/score';
 import { KIND, type CriterionKind, type Match, type SearchConfig, type TargetMode } from './search/types';
 import { CriterionPicker } from './ui/picker';
 import { renderResult } from './ui/results';
@@ -31,6 +32,7 @@ const errorEl = $<HTMLParagraphElement>('error');
 const progressPanel = $<HTMLElement>('progress-panel');
 const resultsEl = $<HTMLElement>('results');
 const emptyEl = $<HTMLElement>('empty');
+const sortNoteEl = $<HTMLElement>('sort-note');
 const statScanned = $<HTMLElement>('stat-scanned');
 const statMatches = $<HTMLElement>('stat-matches');
 const statRate = $<HTMLElement>('stat-rate');
@@ -52,6 +54,10 @@ const SLOW_HINT_AFTER = 2_000_000;
 let lastScanned = 0;
 let lastMatches = 0;
 let stopRequested = false;
+/** Every match found in the current search, kept so they can be re-sorted. */
+let results: Match[] = [];
+/** Drives the stats readout independently of how often workers report. */
+let statsTimer: number | null = null;
 
 function showError(message: string | null): void {
   errorEl.hidden = message === null;
@@ -98,6 +104,27 @@ function buildConfig(picker: CriterionPicker): SearchConfig {
   };
 }
 
+/** Repaints the stats readout from the latest recorded totals. */
+function refreshStats(): void {
+  statScanned.textContent = nf.format(lastScanned);
+  statMatches.textContent = nf.format(lastMatches);
+  const secs = (performance.now() - startedAt) / 1000;
+  statRate.textContent = secs > 0 ? nf.format(Math.round(lastScanned / secs)) : '0';
+  hintEl.hidden = !(lastMatches === 0 && lastScanned > SLOW_HINT_AFTER);
+}
+
+function startStatsTimer(): void {
+  stopStatsTimer();
+  statsTimer = window.setInterval(refreshStats, 250);
+}
+
+function stopStatsTimer(): void {
+  if (statsTimer !== null) {
+    window.clearInterval(statsTimer);
+    statsTimer = null;
+  }
+}
+
 function setRunning(running: boolean): void {
   searchBtn.disabled = running;
   stopBtn.disabled = !running;
@@ -126,9 +153,17 @@ function reportDone(matches: number, scanned: number, limit: number, stopped: bo
   statusEl.className = 'status done';
 }
 
+/** Re-renders the whole list, closest match first. */
+function renderResults(): void {
+  emptyEl.hidden = results.length > 0;
+  sortNoteEl.hidden = results.length === 0;
+  sortByCloseness(results);
+  resultsEl.replaceChildren(...results.map((m) => renderResult(m, lastRadii)));
+}
+
 function addMatches(matches: Match[]): void {
-  emptyEl.hidden = true;
-  for (const m of matches) resultsEl.append(renderResult(m, lastRadii));
+  results.push(...matches);
+  renderResults();
 }
 
 async function main(): Promise<void> {
@@ -139,8 +174,8 @@ async function main(): Promise<void> {
     o.selected = v.id === DEFAULT_VERSION;
     versionSel.append(o);
   }
-  threadsInput.value = String(suggestedWorkerCount());
-  statThreads.textContent = threadsInput.value;
+  threadsInput.value = '0';
+  statThreads.textContent = String(suggestedWorkerCount());
 
   searchBtn.disabled = true;
   searchBtn.textContent = 'Loading engine...';
@@ -195,23 +230,28 @@ async function main(): Promise<void> {
     lastScanned = 0;
     lastMatches = 0;
     stopRequested = false;
+    results = [];
 
-    const lanes = Math.max(1, Math.min(16, Number(threadsInput.value) || suggestedWorkerCount()));
+    // 0 (or blank) means "pick for me".
+    const requested = Number(threadsInput.value);
+    const lanes =
+      !Number.isFinite(requested) || requested <= 0
+        ? suggestedWorkerCount()
+        : Math.min(16, Math.round(requested));
     statThreads.textContent = String(lanes);
 
     pool = new SearchPool(
       {
         onMatch: addMatches,
+        // Workers report per block, which is an uneven cadence. Record here
+        // and let the timer below drive the readout so it ticks smoothly.
         onProgress: (scanned, _stage2, matchCount) => {
           lastScanned = scanned;
           lastMatches = matchCount;
-          statScanned.textContent = nf.format(scanned);
-          statMatches.textContent = nf.format(matchCount);
-          const secs = (performance.now() - startedAt) / 1000;
-          statRate.textContent = secs > 0 ? nf.format(Math.round(scanned / secs)) : '0';
-          hintEl.hidden = !(matchCount === 0 && scanned > SLOW_HINT_AFTER);
         },
         onDone: () => {
+          stopStatsTimer();
+          refreshStats();
           setRunning(false);
           hintEl.hidden = true;
           reportDone(lastMatches, lastScanned, config.matchLimit, stopRequested);
@@ -224,17 +264,21 @@ async function main(): Promise<void> {
     hintEl.hidden = true;
     progressPanel.hidden = false;
     setRunning(true);
+    startStatsTimer();
     pool.start(config);
   });
 
   stopBtn.addEventListener('click', () => {
     stopRequested = true;
+    stopStatsTimer();
     pool?.stop();
   });
 
   clearBtn.addEventListener('click', () => {
+    results = [];
     resultsEl.replaceChildren();
     emptyEl.hidden = false;
+    sortNoteEl.hidden = true;
     hintEl.hidden = true;
     statusEl.textContent = '';
     progressPanel.hidden = true;

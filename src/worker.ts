@@ -9,10 +9,17 @@
 import { SearchEngine } from './search/engine';
 import type { Criterion, SearchConfig, WorkerIn, WorkerOut } from './search/types';
 
-/** Seeds per sf_run() call, re-tuned at runtime to keep blocks short. */
-const TARGET_BLOCK_MS = 40;
-const MIN_BLOCK = 256;
-const MAX_BLOCK = 1 << 20;
+/**
+ * Seeds per sf_run() call, re-tuned at runtime to keep blocks short.
+ *
+ * The floor matters: a search measuring from world spawn costs several
+ * milliseconds per seed, so a 256-seed floor meant a block took a second or
+ * more and progress only moved that often. Four seeds is small enough that
+ * even the slowest search reports several times a second.
+ */
+const TARGET_BLOCK_MS = 100;
+const MIN_BLOCK = 4;
+const MAX_BLOCK = 1 << 16;
 
 /**
  * Seed space is cut into fixed stripes handed out round-robin to the lanes.
@@ -41,7 +48,7 @@ async function search(config: SearchConfig, lane: number, lanes: number, gen: nu
   const criteria: Criterion[] = config.criteria;
   eng.configure(config.mc, config.target, criteria, config.rules);
 
-  let block = 512;
+  let block = 64;
   let scanned = 0;
   let stage2 = 0;
   let matchCount = 0;
@@ -81,8 +88,14 @@ async function search(config: SearchConfig, lane: number, lanes: number, gen: nu
       cursor = 0n;
     }
 
-    if (dt < TARGET_BLOCK_MS / 2 && block < MAX_BLOCK) block *= 2;
-    else if (dt > TARGET_BLOCK_MS * 2 && block > MIN_BLOCK) block = Math.floor(block / 2);
+    // Aim straight at the target rather than doubling or halving, so the
+    // block size settles within a couple of rounds instead of a dozen. The
+    // per-round change is clamped to 4x so one slow block cannot collapse it.
+    if (dt > 0) {
+      const scale = Math.min(4, Math.max(0.25, TARGET_BLOCK_MS / dt));
+      block = Math.round(block * scale);
+    }
+    block = Math.min(MAX_BLOCK, Math.max(MIN_BLOCK, block));
 
     await yieldToLoop();
   }

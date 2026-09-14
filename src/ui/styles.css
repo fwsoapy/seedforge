@@ -97,6 +97,8 @@ input, select {
 }
 input:focus, select:focus { outline: 2px solid var(--accent-dark); outline-offset: 1px; }
 
+.field-hint { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
 .with-unit { position: relative; display: block; }
 .with-unit .unit {
   position: absolute;
@@ -290,6 +292,9 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   animation: slide 1.2s linear infinite;
 }
 @keyframes slide { from { transform: translateX(-120%); } to { transform: translateX(420%); } }
+
+.sort-note { margin-top: 4px; font-size: 12px; }
+#results:empty + .sort-note, #results { }
 
 #results { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
 

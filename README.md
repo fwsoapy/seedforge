@@ -45,11 +45,12 @@ account and nothing leaves your machine.
   searchable alongside overworld structures.
 - **Version aware.** Pick anything from 1.7 to 1.21; the structure list changes
   to match what actually exists in that version.
-- **Multi-threaded.** One Web Worker per logical CPU, each scanning its own
-  stripe of the seed space.
-- **Streaming results.** Matches appear as they are found, with a live
-  seeds-scanned counter and a stop button. A bad filter combination never
-  freezes the page.
+- **Multi-threaded.** One Web Worker per logical CPU by default, each scanning
+  its own stripe of the seed space. Set the thread count yourself under
+  Advanced, or leave it on 0 for automatic.
+- **Streaming results, closest first.** Matches appear as they are found and
+  the list re-sorts so the tightest seed is always on top, ranked by the
+  furthest structure in each. Live counters, and a stop button that works.
 - **Preview map.** Every result gets a map with compass directions, a ring per
   criterion radius, and hover details for each structure.
 - **Private by design.** 100% client-side. No API keys, no analytics, no data
@@ -187,9 +188,12 @@ npm run preview     # serve dist/
 
 1. Pick your Minecraft version.
 2. Set the maximum distance from spawn (500 blocks by default).
-3. Choose what you are measuring from. "Estimated world spawn" is the sensible
-   default; "world origin" is faster; "exact world spawn" is slower but matches
-   what the game actually does.
+3. Choose what you are measuring from. This is the single biggest lever on
+   search speed: working out each seed's spawn point costs around 4ms, which is
+   most of the time a search spends. Measuring from **world origin (0, 0)** is
+   roughly **50x faster** (about 12,000 seeds/sec per thread versus 250), and
+   for "near spawn" searches the two rarely disagree by much. Use
+   "exact world spawn" only when you need it to match the game precisely.
 4. Tick the structures you want. Leave a variant dropdown on **Any** when you
    do not care - the structure still has to exist inside the radius, just
    without a type constraint.
@@ -207,7 +211,7 @@ suspects.
 - **Start seed** - where the scan begins. Blank means a random 48-bit start,
   so two people running the same query get different seeds.
 - **Stop after N matches** - the search halts once it has that many.
-- **Worker threads** - defaults to `navigator.hardwareConcurrency`.
+- **Worker threads** - 0 means automatic, one per logical CPU.
 
 ## Known limitations
 

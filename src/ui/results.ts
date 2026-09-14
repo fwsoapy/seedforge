@@ -3,6 +3,7 @@
 import { biomeById, biomeName } from '../data/biomes';
 import { STRUCT, structureName } from '../data/structures';
 import { distance } from '../search/criteria';
+import { targetOf as targetFor } from '../search/score';
 import { KIND, type Match, type MatchHit } from '../search/types';
 
 const DIM_COLORS: Record<number, string> = {
@@ -12,12 +13,7 @@ const DIM_COLORS: Record<number, string> = {
 };
 const BIOME_COLOR = '#63b3ed';
 
-function targetFor(hit: MatchHit, m: Match): { x: number; z: number } {
-  // Nether structures are filtered against the Nether-side target point.
-  return hit.dim === -1
-    ? { x: Math.trunc(m.spawnX / 8), z: Math.trunc(m.spawnZ / 8) }
-    : { x: m.spawnX, z: m.spawnZ };
-}
+
 
 function hitLabel(hit: MatchHit): string {
   if (hit.kind === KIND.biome) return biomeById(hit.id)?.name ?? `Biome #${hit.id}`;

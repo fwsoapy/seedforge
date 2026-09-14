@@ -34,10 +34,13 @@
           <label class="field">
             <span>Measure from</span>
             <select id="target">
-              <option value="0">World origin (0, 0) - fastest</option>
+              <option value="0">World origin (0, 0)</option>
               <option value="1" selected>Estimated world spawn</option>
-              <option value="2">Exact world spawn - slowest</option>
+              <option value="2">Exact world spawn</option>
             </select>
+            <span class="field-hint">
+              Origin is roughly 50x faster - working out each seed's spawn is most of the cost.
+            </span>
           </label>
         </div>
 
@@ -95,7 +98,8 @@
             </label>
             <label class="field">
               <span>Worker threads</span>
-              <input id="threads" type="number" min="1" max="16" step="1" />
+              <input id="threads" type="number" min="0" max="16" step="1" value="0" />
+              <span class="field-hint">0 = auto (one per CPU core)</span>
             </label>
           </div>
         </details>
@@ -127,6 +131,9 @@
       <section class="panel" id="results-panel">
         <h2>Results</h2>
         <p id="empty" class="hint">No results yet. Pick some structures and hit search.</p>
+        <p id="sort-note" class="hint sort-note" hidden>
+          Closest first - sorted by the furthest structure in each seed.
+        </p>
         <div id="results"></div>
       </section>
     </main>
