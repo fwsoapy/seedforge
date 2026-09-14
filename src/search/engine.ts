@@ -115,8 +115,6 @@ export class SearchEngine {
         [-10]: 'One of the selected structures is not placed by the Bedrock generator.',
         [-11]:
           'That variant filter only works on Java. Bedrock rolls structure variants with a different generator, so the answer would not describe your world.',
-        [-12]:
-          'The combined nether criterion is for Bedrock only. On Java, search for a fortress or a bastion directly.',
       };
       throw new Error(messages[rc] ?? `Search could not be configured (code ${rc}).`);
     }

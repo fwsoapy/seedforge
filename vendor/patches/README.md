@@ -56,44 +56,82 @@ copied, because the project they were documented in
 ([MCBE-seedcracker](https://github.com/Alist2930/MCBE-seedcracker)) is licensed
 "for learning and research purposes only" and could not be vendored.
 
-The implementation was cross-checked against that project's reference build as
-an oracle: 64 cases spanning all 16 supported structures, negative region
-coordinates and seeds near 2^32, all agreeing.
+The implementation was cross-checked against that project's own compiled
+checker as an oracle; see below for the current numbers.
 
 Biomes need no such work. Java and Bedrock terrain generation were unified in
 1.18 onto the same noise and climate system, so cubiomes' biome code is correct
 for Bedrock as-is - which is why Bedrock searching is gated to 1.18 and later.
 
+### The seed is 64 bits, split between two consumers
+
+A Bedrock world seed is a full 64-bit value, exactly like Java's. What differs
+is which part each consumer reads:
+
+- **Structure placement reads only the low 32 bits.** This is why a cracker can
+  recover those 32 bits from structure coordinates alone.
+- **Biome generation reads all 64.** This is why recovering the high half needs
+  a second pass over biome samples.
+
+Both halves of that split are visible in MCBE-seedcracker, which ships one tool
+per half, and in [Chunkbiomes](https://github.com/Nel-S/Chunkbiomes), a port of
+Chunkbase's own code, which takes a `uint64_t` seed, truncates it for the
+Mersenne Twister and hands the whole thing to the biome generator.
+
+Earlier versions of this file claimed a Bedrock seed was 32 bits sign-extended
+to 64. That is a special case that only holds when the seed fits in 32 bits, and
+it made every biome check wrong for any wider world.
+
 ### What is verified, and what is assumed
 
-Worth separating, because the two halves of Bedrock support rest on very
-different footing.
+Worth separating, because the parts rest on different footing.
 
 **Structure placement is verified.** The MT19937 and the region maths were
-checked against a reference implementation across 64 cases covering all 16
-supported structures, negative region coordinates and seeds near 2^32. All 64
-agreed. Positions can be trusted.
+diffed against MCBE-seedcracker's own compiled checker across 13 structure
+types, 10 seeds including negatives and both 32-bit extremes, and 81 region
+pairs: 10,530 of 10,530 positions confirmed. Positions can be trusted.
 
-**Biome checks rest on two assumptions.** The first is that Java and Bedrock
-share a generator from 1.18, which is why Bedrock is gated to 1.18 and later
-rather than offered for the whole version list. The second is that a Bedrock
-world seed, which is 32 bits, is used sign-extended to 64 bits for biome
-generation. That is the natural reading of a typed seed and what is
-implemented, but it is an assumption rather than something checked against the
-game. Anything downstream of a biome check on Bedrock, which includes whether
-a structure is viable at all, carries that caveat.
+Note the region seed formula is not really Bedrock-specific. `2570712328` and
+`4048968661` are Java's `341873128712` and `132897987541` reduced mod 2^32, so
+Bedrock is running Java's region formula in 32-bit arithmetic.
+
+Positions carry a `+8`, putting the coordinate on the structure's starting
+block rather than the chunk corner, which is what Chunkbase reports. Chunkbiomes
+applies the same offset.
+
+**The fortress and bastion split is reverse engineering, not a spec.** They
+share one region grid and the game builds one of the pair per site. The draw
+straight after the two that place it decides which:
+
+```
+mt[2] % 6 >= 2  ->  bastion   (4 in 6, matching the 2/3 the wiki documents)
+mt[2] % 6 <  2  ->  fortress  (2 in 6)
+```
+
+The rule appears independently in
+[MCBEStructureFinder](https://github.com/bedrock-dev/MCBEStructureFinder) and in
+Chunkbiomes, and this implementation was cross-checked against a third port of
+it over 69,120 regions with no disagreement on either position or type. But it
+is disabled in both of those projects, so it has not been confirmed against a
+running game here. The site itself is exact either way; only the label depends
+on this rule.
+
+**Biome checks rest on one assumption.** That Java and Bedrock share a
+generator from 1.18, which is why Bedrock is gated to 1.18 and later rather
+than offered for the whole version list. Chunkbiomes makes the same call: its
+`isViableBedrockStructurePos` delegates straight to cubiomes' Java one.
 
 ### Known limits
 
-- Nether fortresses and bastions share one region grid on Bedrock, so they
-  cannot be told apart by position alone.
-- Desert pyramids, jungle temples, witch huts and igloos also share a grid;
-  the biome decides which appears, and the biome check handles that.
+- Desert pyramids, jungle temples, witch huts and igloos share a grid; the
+  biome decides which appears, and the biome check handles that.
 - Strongholds, mineshafts, trial chambers, trail ruins, desert wells, geodes
   and end gateways are not offered on Bedrock - their placement differs and is
   not implemented here.
 - Villages, outposts, mansions, igloos and ruined portals have extra placement
   rules on Bedrock that can shift the result by a chunk.
+- World spawn is Java's estimate. Bedrock picks spawn differently, so a search
+  targeted at spawn measures its distances from the wrong point there.
 - **Structure variant filters do not apply on Bedrock and are hidden there.**
   cubiomes derives them in `getVariant()` from `chunkGenerateRnd`, which is
   Java's LCG. Bedrock rolls the same choices with its own generator, so the

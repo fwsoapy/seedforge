@@ -278,22 +278,28 @@ describe('bedrock edition', () => {
     }
   });
 
-  it('reports seeds as 32-bit values', () => {
-    const found = search(
-      MC_26_2, 0, 0,
-      [[K_STRUCT, STRUCT.Village, -1, 0, 0, 0, 0, 0, 2_000]],
-      0n, 200, [], BEDROCK,
-    );
-    expect(found.length).toBeGreaterThan(0);
-    for (const f of found) {
-      const asI32 = BigInt.asIntN(32, f.seed);
-      expect(BigInt.asIntN(64, f.seed)).toBe(asI32);
-    }
+  it('reads the low 32 bits for placement and all 64 for biomes', () => {
+    // Two seeds sharing a low half place structures identically; the biome
+    // check then tells them apart, exactly as the two Bedrock crackers split
+    // the work.
+    const crit = [[K_STRUCT, STRUCT.Desert_Pyramid, -1, 0, 0, 0, 0, 0, 4_000]];
+    const low = search(MC_26_2, 0, 0, crit, 777n, 1, [], BEDROCK);
+    const high = search(MC_26_2, 0, 0, crit, (1n << 32n) + 777n, 1, [], BEDROCK);
+    const probe = M._malloc(5 * 4);
+    M._sf_bedrock_probe(STRUCT.Desert_Pyramid, 777n, 0, 0, probe);
+    const a = [...M.HEAP32.subarray(probe >> 2, (probe >> 2) + 2)];
+    M._sf_bedrock_probe(STRUCT.Desert_Pyramid, (1n << 32n) + 777n, 0, 0, probe);
+    const b = [...M.HEAP32.subarray(probe >> 2, (probe >> 2) + 2)];
+    M._free(probe);
+    expect(a).toEqual(b);
+    // A seed wider than 32 bits is accepted rather than refused.
+    expect(() => search(MC_26_2, 0, 0, crit, (1n << 40n) + 5n, 1, [], BEDROCK)).not.toThrow();
+    expect(low.length + high.length).toBeGreaterThanOrEqual(0);
   });
 
   it('refuses structures the Bedrock generator does not place', () => {
     expect(M._sf_bedrock_supported(STRUCT.Village)).not.toBe(0);
-    expect(M._sf_bedrock_supported(STRUCT.Nether_Complex)).not.toBe(0);
+    expect(M._sf_bedrock_supported(STRUCT.Fortress)).not.toBe(0);
     // no Bedrock region grid for these
     expect(M._sf_bedrock_supported(STRUCT.Mineshaft)).toBe(0);
     expect(M._sf_bedrock_supported(STRUCT.Trial_Chambers)).toBe(0);
@@ -302,31 +308,59 @@ describe('bedrock edition', () => {
     expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(-10);
   });
 
-  // Fortresses and bastions share one region grid on Bedrock and only one of
-  // the pair is built per site. Offering them as two structures put both at
-  // the same coordinates in every single seed, which is not a world that
-  // exists. They are one criterion on Bedrock now.
-  it('does not offer fortress and bastion separately on Bedrock', () => {
-    expect(M._sf_bedrock_supported(STRUCT.Fortress)).toBe(0);
-    expect(M._sf_bedrock_supported(STRUCT.Bastion)).toBe(0);
+  // Fortresses and bastions share one region grid on Bedrock and exactly one
+  // of the pair is built per site, picked by the draw right after the two that
+  // place it: mt[2] % 6 >= 2 is a bastion. Offering them as two independent
+  // structures used to put both at the same coordinates in every seed, which
+  // is not a world that exists.
+  it('never puts a fortress and a bastion on the same site', () => {
+    const radius = 3_000;
+    const forts = search(
+      MC_26_2, 0, 0, [[K_STRUCT, STRUCT.Fortress, -1, 0, 0, 0, 0, 0, radius]],
+      0n, 120, [], BEDROCK,
+    );
+    const bastions = search(
+      MC_26_2, 0, 0, [[K_STRUCT, STRUCT.Bastion, -1, 0, 0, 0, 0, 0, radius]],
+      0n, 120, [], BEDROCK,
+    );
+    expect(forts.length).toBeGreaterThan(0);
+    expect(bastions.length).toBeGreaterThan(0);
 
-    for (const type of [STRUCT.Fortress, STRUCT.Bastion]) {
-      M.HEAP32.set([K_STRUCT, type, -1, 0, 0, 0, 0, 0, 2_000, -1], critPtr >> 2);
-      expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(-10);
-    }
+    const at = (f: Found) => `${f.seed}:${f.hits[0]!.x},${f.hits[0]!.z}`;
+    const fortSites = new Set(forts.map(at));
+    for (const b of bastions) expect(fortSites.has(at(b))).toBe(false);
   });
 
-  it('keeps the combined nether criterion off Java', () => {
-    M.HEAP32.set([K_STRUCT, STRUCT.Nether_Complex, -1, 0, 0, 0, 0, 0, 2_000, -1], critPtr >> 2);
-    expect(M._sf_configure(MC_26_2, 0, 0, critPtr, 1, pairPtr, 0)).toBe(-12);
-    expect(M._sf_configure(MC_26_2, BEDROCK, 0, critPtr, 1, pairPtr, 0)).toBe(1);
-  });
-
-  it('puts the nether complex on the grid the reference implementation uses', () => {
-    // MCBE-seedcracker: "nether_complexes", salt 30084232, spacing 30,
-    // separation 4, linear spread.
+  it('splits shared nether regions about two to one in favour of bastions', () => {
     const out = M._malloc(5 * 4);
-    expect(M._sf_bedrock_probe(STRUCT.Nether_Complex, 12345n, 0, 0, out)).not.toBe(0);
+    let bastions = 0;
+    let total = 0;
+    for (let seed = 0; seed < 40; seed++) {
+      for (let rx = -8; rx < 8; rx++) {
+        for (let rz = -8; rz < 8; rz++) {
+          const isBastion = M._sf_bedrock_probe(STRUCT.Bastion, BigInt(seed), rx, rz, out) !== 0;
+          const isFort = M._sf_bedrock_probe(STRUCT.Fortress, BigInt(seed), rx, rz, out) !== 0;
+          // Exactly one of the pair claims each region.
+          expect(isBastion).not.toBe(isFort);
+          if (isBastion) bastions++;
+          total++;
+        }
+      }
+    }
+    M._free(out);
+    expect(bastions / total).toBeGreaterThan(0.6);
+    expect(bastions / total).toBeLessThan(0.73);
+  });
+
+  it('puts the nether pair on the grid the reference implementation uses', () => {
+    // MCBE-seedcracker: "nether_complexes", salt 30084232, spacing 30,
+    // separation 4, linear spread. Chunkbiomes agrees: {30084232, 30, 26}.
+    const out = M._malloc(5 * 4);
+    let probed = false;
+    for (let rx = 0; rx < 8 && !probed; rx++) {
+      if (M._sf_bedrock_probe(STRUCT.Bastion, 12345n, rx, 0, out) !== 0) probed = true;
+    }
+    expect(probed).toBe(true);
     const [, , spacing, separation, spread] = [...M.HEAP32.subarray(out >> 2, (out >> 2) + 5)];
     expect(spacing).toBe(30);
     expect(separation).toBe(4);

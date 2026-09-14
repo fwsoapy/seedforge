@@ -295,12 +295,22 @@
           </li>
           <li>
             Bedrock searching covers 1.18 and later, since that is when both editions moved to the
-            same world generator. Structure positions are computed with Bedrock's own generator and
-            were checked against a reference implementation; the biome side assumes the two editions
-            still agree and that a 32-bit seed is used sign-extended, which is not verified against
-            the game. Fortresses and bastions share one region grid on Bedrock and cannot be told
-            apart by position; villages, outposts, mansions, igloos and ruined portals have extra
-            placement rules that can shift a result by a chunk.
+            same world generator. A Bedrock seed is a full 64-bit number like Java's: structure
+            placement reads only its low 32 bits, biome generation reads all 64. Positions are
+            computed with Bedrock's own generator and were diffed against a reference
+            implementation across 10,530 cases; the biome side assumes the two editions still
+            agree from 1.18 on. Villages, outposts, mansions, igloos and ruined portals have extra
+            placement rules that can shift a result by a chunk, and world spawn is Java's estimate,
+            so a Bedrock search targeted at spawn measures from the wrong point.
+          </li>
+          <li>
+            Telling a Bedrock fortress from a bastion is reverse engineering rather than a
+            documented rule. The two share one region grid and the game builds one of them per
+            site; the draw after the two that place it decides which, giving bastions two thirds of
+            sites, which is the split the wiki reports. The rule matches two independent
+            implementations, but both ship it disabled and it has not been confirmed in-game here.
+            The site is exact either way, so a wrong call would name the wrong structure, never the
+            wrong place.
           </li>
           <li>
             Structure variant filters are Java only and are hidden when Bedrock is selected. Ruined

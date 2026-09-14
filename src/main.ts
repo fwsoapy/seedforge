@@ -6,7 +6,6 @@
  * workers so the UI never blocks.
  */
 
-import { STRUCTURES } from './data/structures';
 import { DEFAULT_VERSION, MC_VERSIONS } from './data/versions';
 import { SearchEngine } from './search/engine';
 import { SearchPool, suggestedWorkerCount } from './search/pool';
@@ -78,36 +77,34 @@ function showError(message: string | null): void {
 function randomSeed(): bigint {
   const buf = new Uint32Array(2);
   crypto.getRandomValues(buf);
-  // A Bedrock world seed is 32 bits; Java structure placement only uses the
-  // low 48, so that is the space each draws its starting point from.
-  if (Number(editionSel.value) === EDITION.bedrock) return BigInt(buf[0]!);
+  // Java structure placement only reads the low 48 bits, so there is nothing
+  // to gain from a wider starting point. Bedrock reads the low 32 for
+  // placement but all 64 for biomes, so it draws from the full range.
+  if (Number(editionSel.value) === EDITION.bedrock) {
+    return BigInt.asUintN(64, (BigInt(buf[0]!) << 32n) | BigInt(buf[1]!));
+  }
   return ((BigInt(buf[0]!) << 16n) ^ BigInt(buf[1]!)) & ((1n << 48n) - 1n);
 }
 
 /**
  * Turns typed text into a world seed.
  *
- * Bedrock world seeds are 32 bits, and the generator only ever looks at the
- * low 32, so anything wider would quietly describe a different world than the
- * one typed. Reject it instead of truncating.
+ * Both editions take a full 64-bit seed. Bedrock reads only the low 32 bits
+ * for structure placement, which is why its structures can be cracked from
+ * coordinates alone, but biome generation there reads all 64 like Java's does.
  */
-function parseSeed(raw: string, edition: Edition, label: string): bigint {
-  let seed: bigint;
+function parseSeed(raw: string, label: string): bigint {
   try {
-    seed = BigInt(raw);
+    return BigInt.asUintN(64, BigInt(raw));
   } catch {
     throw new Error(`${label} must be a whole number.`);
   }
-  if (edition === EDITION.bedrock && (seed < -(2n ** 31n) || seed > 2n ** 32n - 1n)) {
-    throw new Error('A Bedrock seed is 32 bits, so it has to be between -2147483648 and 4294967295.');
-  }
-  return BigInt.asUintN(64, seed);
 }
 
 function parseStartSeed(): bigint {
   const raw = startSeedInput.value.trim();
   if (raw === '') return randomSeed();
-  return parseSeed(raw, Number(editionSel.value) as Edition, 'Start seed');
+  return parseSeed(raw, 'Start seed');
 }
 
 function buildConfig(picker: CriterionPicker): SearchConfig {
@@ -243,13 +240,8 @@ async function main(): Promise<void> {
       const mc = Number(versionSel.value);
       if (kind === KIND.biome) return meta!.supportsBiome(id, mc);
       if (!meta!.supports(id, mc)) return false;
-      const bedrock = Number(editionSel.value) === EDITION.bedrock;
-      // A couple of entries only make sense on one edition: the combined
-      // nether complex exists because Bedrock cannot tell a fortress from a
-      // bastion, which Java can.
-      if (STRUCTURES.find((d) => d.id === id)?.bedrockOnly && !bedrock) return false;
       // On Bedrock, only structures the Bedrock generator actually places.
-      if (bedrock) return meta!.supportsBedrock(id);
+      if (Number(editionSel.value) === EDITION.bedrock) return meta!.supportsBedrock(id);
       return true;
     },
     () => showError(null),
@@ -271,7 +263,7 @@ async function main(): Promise<void> {
     if (changed) versionSel.value = String(DEFAULT_VERSION);
     editionHint.hidden = !bedrock;
     editionHint.textContent = bedrock
-      ? 'Bedrock seeds are 32-bit. Structure variant filters are Java only.'
+      ? 'Structure variant filters are Java only. Bedrock reads the low 32 bits of the seed for structures and all 64 for biomes.'
       : '';
     picker.setJavaOnlyAllowed(!bedrock);
     picker.render();
@@ -364,7 +356,7 @@ async function main(): Promise<void> {
     let seed: bigint;
     let config: SearchConfig;
     try {
-      seed = parseSeed(raw, Number(editionSel.value) as Edition, 'A seed');
+      seed = parseSeed(raw, 'A seed');
       config = buildConfig(picker);
     } catch (err) {
       showError(err instanceof Error ? err.message : String(err));

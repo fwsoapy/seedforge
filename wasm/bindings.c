@@ -31,14 +31,6 @@
 
 /* Pseudo structure types that live outside cubiomes' StructureType enum. */
 #define SF_STRONGHOLD   (FEATURE_NUM + 0)
-/*
- * Bedrock only. Nether fortresses and bastions share one region grid, and
- * exactly one of the two stands in each occupied region; Java decides which
- * with an LCG roll we cannot reproduce for Bedrock. So on Bedrock the pair is
- * offered as a single criterion that locates the complex without claiming
- * which kind it is.
- */
-#define SF_NETHER_COMPLEX (FEATURE_NUM + 1)
 
 /* Target-point modes. */
 #define SF_TARGET_ORIGIN    0
@@ -105,6 +97,24 @@
 #define SF_SPREAD_LINEAR     0
 #define SF_SPREAD_TRIANGULAR 1
 
+/*
+ * Nether region selection. Fortresses and bastions share one region grid and
+ * the game builds exactly one of the pair per site, chosen by a third draw
+ * from the same Mersenne Twister that placed it:
+ *
+ *   mt[2] % 6 >= 2  ->  bastion   (4 in 6)
+ *   mt[2] % 6 <  2  ->  fortress  (2 in 6)
+ *
+ * The 2/3 bastion share matches what the wiki documents for Bedrock, and the
+ * rule appears independently in bedrock-dev/MCBEStructureFinder and in
+ * Nel-S/Chunkbiomes (a port of Chunkbase's own code). It is disabled in both,
+ * so it is reverse engineering rather than a verified spec; the shared site
+ * itself is exact either way. See vendor/patches/README.md.
+ */
+#define SF_PICK_ANY      0
+#define SF_PICK_FORTRESS 1
+#define SF_PICK_BASTION  2
+
 typedef struct
 {
     int type;       /* our structure id */
@@ -112,32 +122,34 @@ typedef struct
     int spacing;    /* region size, in chunks */
     int separation; /* minimum gap, in chunks */
     int spread;     /* SF_SPREAD_* */
+    int pick;       /* SF_PICK_*: which half of a shared nether region */
 } BedrockConfig;
 
 /*
  * Note the shared entries. On Bedrock the four "temple" structures occupy one
  * region grid and the biome decides which of them appears, exactly as the old
  * Java Feature type did; the biome check downstream disambiguates. Nether
- * fortresses and bastions also share a grid, but nothing downstream can tell
- * those two apart on Bedrock, so they are one criterion: SF_NETHER_COMPLEX.
+ * fortresses and bastions also share a grid, and the `pick` field says which
+ * half of it a criterion wants.
  */
 static const BedrockConfig g_bedrock[] = {
-    { Village,         10387312,  34,  8, SF_SPREAD_TRIANGULAR },
-    { Mansion,         10387319,  80, 20, SF_SPREAD_TRIANGULAR },
-    { End_City,        10387313,  20, 11, SF_SPREAD_TRIANGULAR },
-    { Monument,        10387313,  32,  5, SF_SPREAD_TRIANGULAR },
-    { Ancient_City,    20083232,  24,  8, SF_SPREAD_TRIANGULAR },
-    { Outpost,        165745296,  80, 24, SF_SPREAD_TRIANGULAR },
-    { Treasure,        16842397,   4,  2, SF_SPREAD_TRIANGULAR },
-    { Ocean_Ruin,      14357621,  20,  8, SF_SPREAD_LINEAR },
-    { Shipwreck,      165745295,  24,  4, SF_SPREAD_LINEAR },
-    { SF_NETHER_COMPLEX, 30084232, 30, 4, SF_SPREAD_LINEAR },
-    { Desert_Pyramid,  14357617,  32,  8, SF_SPREAD_LINEAR },
-    { Igloo,           14357617,  32,  8, SF_SPREAD_LINEAR },
-    { Swamp_Hut,       14357617,  32,  8, SF_SPREAD_LINEAR },
-    { Jungle_Temple,   14357617,  32,  8, SF_SPREAD_LINEAR },
-    { Ruined_Portal,   40552231,  40, 15, SF_SPREAD_LINEAR },
-    { Ruined_Portal_N, 40552231,  25, 10, SF_SPREAD_LINEAR },
+    { Village,         10387312,  34,  8, SF_SPREAD_TRIANGULAR, SF_PICK_ANY },
+    { Mansion,         10387319,  80, 20, SF_SPREAD_TRIANGULAR, SF_PICK_ANY },
+    { End_City,        10387313,  20, 11, SF_SPREAD_TRIANGULAR, SF_PICK_ANY },
+    { Monument,        10387313,  32,  5, SF_SPREAD_TRIANGULAR, SF_PICK_ANY },
+    { Ancient_City,    20083232,  24,  8, SF_SPREAD_TRIANGULAR, SF_PICK_ANY },
+    { Outpost,        165745296,  80, 24, SF_SPREAD_TRIANGULAR, SF_PICK_ANY },
+    { Treasure,        16842397,   4,  2, SF_SPREAD_TRIANGULAR, SF_PICK_ANY },
+    { Ocean_Ruin,      14357621,  20,  8, SF_SPREAD_LINEAR,     SF_PICK_ANY },
+    { Shipwreck,      165745295,  24,  4, SF_SPREAD_LINEAR,     SF_PICK_ANY },
+    { Fortress,        30084232,  30,  4, SF_SPREAD_LINEAR,     SF_PICK_FORTRESS },
+    { Bastion,         30084232,  30,  4, SF_SPREAD_LINEAR,     SF_PICK_BASTION },
+    { Desert_Pyramid,  14357617,  32,  8, SF_SPREAD_LINEAR,     SF_PICK_ANY },
+    { Igloo,           14357617,  32,  8, SF_SPREAD_LINEAR,     SF_PICK_ANY },
+    { Swamp_Hut,       14357617,  32,  8, SF_SPREAD_LINEAR,     SF_PICK_ANY },
+    { Jungle_Temple,   14357617,  32,  8, SF_SPREAD_LINEAR,     SF_PICK_ANY },
+    { Ruined_Portal,   40552231,  40, 15, SF_SPREAD_LINEAR,     SF_PICK_ANY },
+    { Ruined_Portal_N, 40552231,  25, 10, SF_SPREAD_LINEAR,     SF_PICK_ANY },
 };
 #define SF_BEDROCK_COUNT ((int)(sizeof(g_bedrock) / sizeof(g_bedrock[0])))
 
@@ -267,7 +279,6 @@ static inline int sf_dim_of(int type)
     case Fortress:
     case Bastion:
     case Ruined_Portal_N:
-    case SF_NETHER_COMPLEX:
         return DIM_NETHER;
     case End_City:
     case End_Gateway:
@@ -294,8 +305,6 @@ int sf_supported(int type, int mc)
     StructureConfig sc;
     if (type == SF_STRONGHOLD)
         return mc >= MC_1_0;
-    if (type == SF_NETHER_COMPLEX)
-        return mc >= MC_1_16_1; /* bastions, and so the shared grid, are 1.16+ */
     return getStructureConfig(type, mc, &sc) != 0;
 }
 
@@ -396,8 +405,6 @@ int sf_configure(int mc, int edition, int target, const int32_t *crit, int ncrit
             else
             {
                 c->dim = sf_dim_of(c->type);
-                if (c->type == SF_NETHER_COMPLEX && edition != SF_BEDROCK)
-                    return -12; /* Java can tell fortress and bastion apart */
                 if (c->type == SF_STRONGHOLD)
                 {
                     if (mc < MC_1_0)
@@ -417,17 +424,10 @@ int sf_configure(int mc, int edition, int target, const int32_t *crit, int ncrit
                      * biome generation, which the two editions share. */
                     if (c->tmask || c->areaMin || c->areaMax || c->subtype != SF_ANY)
                         return -11;
-                    /* The combined nether criterion is not a cubiomes type, so
-                     * it has no config and needs no biome check: a complex
-                     * region always holds a fortress or a bastion, and
-                     * fortresses generate exactly where bastions do not. */
-                    if (c->type != SF_NETHER_COMPLEX)
-                    {
-                        /* Still need the Java config for the biome checks. */
-                        if (!getStructureConfig(c->type, mc, &c->sconf))
-                            return -3;
-                        c->hasconf = 1;
-                    }
+                    /* Still need the Java config for the biome checks. */
+                    if (!getStructureConfig(c->type, mc, &c->sconf))
+                        return -3;
+                    c->hasconf = 1;
                 }
                 else
                 {
@@ -529,11 +529,15 @@ static inline int sf_within(int px, int pz, int cx, int cz, int r)
 }
 
 /*
- * Bedrock's generation-attempt position for one region. Returns the block
- * position of the structure's starting chunk.
+ * Bedrock's generation-attempt position for one region.
+ *
+ * Returns 0 when the region does not hold the requested structure, which only
+ * happens for the shared nether grid. The +8 puts the coordinate on the
+ * structure's starting block rather than the chunk corner, matching what
+ * Chunkbase reports.
  */
-static void sf_bedrock_pos(const BedrockConfig *bc, uint64_t seed,
-                           int regX, int regZ, Pos *pos)
+static int sf_bedrock_pos(const BedrockConfig *bc, uint64_t seed,
+                          int regX, int regZ, Pos *pos)
 {
     Mt19937 r;
     uint32_t range = (uint32_t)(bc->spacing - bc->separation);
@@ -563,8 +567,17 @@ static void sf_bedrock_pos(const BedrockConfig *bc, uint64_t seed,
         oz = mtNext(&r) % range;
     }
 
-    pos->x = (int)(((int64_t)regX * bc->spacing + ox) * 16);
-    pos->z = (int)(((int64_t)regZ * bc->spacing + oz) * 16);
+    /* The draw right after the offsets decides which of the pair is built. */
+    if (bc->pick != SF_PICK_ANY)
+    {
+        int bastion = (int)(mtNext(&r) % 6) >= 2;
+        if (bastion != (bc->pick == SF_PICK_BASTION))
+            return 0;
+    }
+
+    pos->x = (int)((((int64_t)regX * bc->spacing + ox) * 16) + 8);
+    pos->z = (int)((((int64_t)regZ * bc->spacing + oz) * 16) + 8);
+    return 1;
 }
 
 /* Collects generation-attempt positions of one structure type within radius r
@@ -614,7 +627,8 @@ static int sf_candidates(const Crit *c, uint64_t seed, int cx, int cz, int r,
             {
                 if (c->bconf)
                 {
-                    sf_bedrock_pos(c->bconf, seed, rx, rz, &p);
+                    if (!sf_bedrock_pos(c->bconf, seed, rx, rz, &p))
+                        continue;
                 }
                 else if (!getStructurePos(c->type, g_mc, seed, rx, rz, &p))
                 {
@@ -806,11 +820,8 @@ static int sf_collect(const Crit *c, uint64_t seed, int cx, int cz, int r,
     n = sf_candidates(c, seed, cx, cz, r, hits);
     for (i = 0; i < n; i++)
     {
-        /* A nether complex region always holds one of the pair, so there is
-         * nothing left to confirm; anything else gets the biome check. */
-        int viable = c->type == SF_NETHER_COMPLEX ? 1 :
-            isViableStructurePos(c->type, g, hits[i].x, hits[i].z,
-                                 c->variant > 0 ? (uint32_t) c->variant : 0);
+        int viable = isViableStructurePos(c->type, g, hits[i].x, hits[i].z,
+                                         c->variant > 0 ? (uint32_t) c->variant : 0);
         if (!viable)
             continue;
 
@@ -933,12 +944,12 @@ int sf_run(uint64_t start, int count, uint64_t *outSeeds, int32_t *outData,
         int pass = 1;
         int cx = 0, cz = 0;
 
-        /* A Bedrock world seed is the 32-bit value the player typed. Structure
-         * placement uses those 32 bits directly; biome generation uses them
-         * sign-extended to 64, which is also the form reported back so the
-         * number matches what goes into the game. */
-        if (g_edition == SF_BEDROCK)
-            seed = (uint64_t)(int64_t)(int32_t)(uint32_t) seed;
+        /* A Bedrock world seed is a full 64-bit value, exactly like Java's.
+         * The split is in what reads it: structure placement uses only the low
+         * 32 bits (which is why a 32-bit cracker can recover them from
+         * structure positions alone), while biome generation uses all 64 (which
+         * is why recovering the high half needs biome samples). sf_bedrock_pos
+         * truncates for placement; everything else gets the whole seed. */
 
         g_scanned++;
 
@@ -1131,7 +1142,8 @@ int sf_bedrock_probe(int type, uint64_t seed, int regX, int regZ, int32_t *out)
     Pos p;
     if (!bc)
         return 0;
-    sf_bedrock_pos(bc, seed, regX, regZ, &p);
+    if (!sf_bedrock_pos(bc, seed, regX, regZ, &p))
+        return 0;
     out[0] = p.x;
     out[1] = p.z;
     out[2] = bc->spacing;

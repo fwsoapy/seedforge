@@ -35,12 +35,6 @@ export const STRUCT = {
   Trial_Chambers: 24,
   /** Not a cubiomes StructureType - handled separately by the WASM core. */
   Stronghold: 25,
-  /**
-   * Bedrock only. Fortresses and bastions share one region grid and only one
-   * of the two stands in each occupied region, so on Bedrock they are searched
-   * as a single "nether complex".
-   */
-  Nether_Complex: 26,
 } as const;
 
 /** Variant trait bits, matching SF_TRAIT_* in wasm/bindings.c. */
@@ -98,11 +92,6 @@ export interface StructureDef {
   /** Short note surfaced in the picker (caveats, minimum distances, ...). */
   readonly note?: string;
   readonly variants?: readonly VariantGroup[];
-  /**
-   * Only offered on Bedrock. The other direction needs no flag: a structure
-   * Bedrock does not place is hidden by sf_bedrock_supported().
-   */
-  readonly bedrockOnly?: boolean;
 }
 
 const ANY: VariantOption = { value: null, label: 'Any' };
@@ -299,21 +288,14 @@ export const STRUCTURES: readonly StructureDef[] = [
     id: STRUCT.Fortress,
     name: 'Nether fortress',
     dim: 'nether',
-    note: 'Distance is measured in Nether coordinates',
+    note: 'Shares one grid with bastions on Bedrock, one or the other per site. Distance is measured in Nether coordinates.',
   },
   {
     id: STRUCT.Bastion,
     name: 'Bastion remnant',
     dim: 'nether',
-    note: 'Distance is measured in Nether coordinates',
+    note: 'Shares one grid with fortresses on Bedrock, one or the other per site. Distance is measured in Nether coordinates.',
     variants: [BASTION_TYPE],
-  },
-  {
-    id: STRUCT.Nether_Complex,
-    name: 'Nether fortress or bastion',
-    dim: 'nether',
-    note: 'Bedrock puts both on one grid and builds one of them per site, so the spot is exact but which of the two it is cannot be told apart. Distance is measured in Nether coordinates.',
-    bedrockOnly: true,
   },
   {
     id: STRUCT.Ruined_Portal_N,
