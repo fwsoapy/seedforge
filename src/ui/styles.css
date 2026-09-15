@@ -290,6 +290,36 @@ input:focus, select:focus { outline: 2px solid var(--accent-dark); outline-offse
 .preset:hover { border-color: var(--accent-dark); }
 .preset.on { border-color: var(--accent-dark); background: var(--selected-bg); }
 .preset-name { font-size: 13.5px; font-weight: 600; }
+
+/* A sibling of the preset button rather than a child, so it is its own
+ * control: nested buttons are invalid and unreachable by keyboard. */
+.preset-slot { position: relative; display: flex; }
+.preset-slot .preset { flex: 1; }
+.preset-slot:has(.preset-delete) .preset { padding-right: 32px; }
+
+.preset-delete {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 5px;
+}
+.preset-delete:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+
+.preset-save {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.preset-save input { width: auto; flex: 1 1 200px; max-width: 260px; }
+.preset-save .field-hint { flex-basis: 100%; margin: 0; }
 .preset-blurb { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
 
 .chip-grid {

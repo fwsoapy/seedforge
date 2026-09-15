@@ -6,6 +6,14 @@
  * workers so the UI never blocks.
  */
 
+import {
+  MAX_CUSTOM_PRESETS,
+  MAX_PRESET_NAME,
+  loadCustomPresets,
+  newPresetKey,
+  saveCustomPresets,
+  summarise,
+} from './data/custom-presets';
 import { PRESETS, type Preset } from './data/presets';
 import { DEFAULT_VERSION, MC_VERSIONS } from './data/versions';
 import { SearchEngine } from './search/engine';
@@ -39,6 +47,9 @@ const checkBtn = $<HTMLButtonElement>('check');
 const checkSeedInput = $<HTMLInputElement>('check-seed');
 const themeBtn = $<HTMLButtonElement>('theme');
 const presetList = $<HTMLElement>('preset-list');
+const presetNameInput = $<HTMLInputElement>('preset-name');
+const presetSaveBtn = $<HTMLButtonElement>('preset-save');
+const presetNote = $<HTMLElement>('preset-note');
 const errorEl = $<HTMLParagraphElement>('error');
 const progressPanel = $<HTMLElement>('progress-panel');
 const resultsEl = $<HTMLElement>('results');
@@ -304,6 +315,12 @@ async function main(): Promise<void> {
    * makes "click one, hit search" work, but it leaves edition, version, target
    * and thread count alone: those are the user's setup, not part of the query.
    */
+  let custom = loadCustomPresets();
+
+  const setNote = (text: string): void => {
+    presetNote.textContent = text;
+  };
+
   const usePreset = (preset: Preset): void => {
     showError(null);
     picker.applyPreset(preset);
@@ -312,7 +329,10 @@ async function main(): Promise<void> {
     });
   };
 
-  for (const preset of PRESETS) {
+  const presetButton = (preset: Preset, own: boolean): HTMLElement => {
+    const slot = document.createElement('div');
+    slot.className = 'preset-slot';
+
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'preset';
@@ -328,8 +348,79 @@ async function main(): Promise<void> {
 
     btn.append(name, blurb);
     btn.addEventListener('click', () => usePreset(preset));
-    presetList.append(btn);
+    slot.append(btn);
+
+    // Only the user's own presets can be removed. The four built-ins are
+    // compiled into the page and get no delete control at all. It is a sibling
+    // rather than a child of the button, so it is reachable by keyboard.
+    if (own) {
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'preset-delete';
+      remove.textContent = '\u2715';
+      remove.title = `Delete "${preset.name}"`;
+      remove.setAttribute('aria-label', `Delete preset ${preset.name}`);
+      remove.addEventListener('click', () => {
+        custom = custom.filter((p) => p.key !== preset.key);
+        saveCustomPresets(custom);
+        setNote(`Deleted "${preset.name}".`);
+        renderPresets();
+      });
+      slot.append(remove);
+    }
+
+    return slot;
+  };
+
+  function renderPresets(): void {
+    presetList.replaceChildren(
+      ...PRESETS.map((p) => presetButton(p, false)),
+      ...custom.map((p) => presetButton(p, true)),
+    );
+    presetSaveBtn.disabled = custom.length >= MAX_CUSTOM_PRESETS;
   }
+
+  const savePreset = (): void => {
+    const name = presetNameInput.value.trim().slice(0, MAX_PRESET_NAME);
+    if (name === '') {
+      setNote('Give it a name first.');
+      presetNameInput.focus();
+      return;
+    }
+    if (custom.length >= MAX_CUSTOM_PRESETS) {
+      setNote(`You can keep ${MAX_CUSTOM_PRESETS} saved presets. Delete one to make room.`);
+      return;
+    }
+
+    const { criteria, rules } = picker.exportSelection();
+    if (criteria.length === 0) {
+      setNote('Tick at least one structure or biome, then save.');
+      return;
+    }
+
+    custom = [
+      ...custom,
+      { key: newPresetKey(), name, blurb: summarise(criteria, rules), criteria, rules, custom: true },
+    ];
+    if (!saveCustomPresets(custom)) {
+      custom = loadCustomPresets();
+      renderPresets();
+      setNote('This browser would not let the page store anything, so it was not saved.');
+      return;
+    }
+    presetNameInput.value = '';
+    renderPresets();
+    setNote(`Saved "${name}". Stored in this browser only.`);
+  };
+
+  presetSaveBtn.addEventListener('click', savePreset);
+  presetNameInput.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      savePreset();
+    }
+  });
+  renderPresets();
 
   editionSel.addEventListener('change', applyEdition);
   versionSel.addEventListener('change', () => picker.render());

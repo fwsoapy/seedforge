@@ -10,7 +10,7 @@
 
 import { BIOME_GROUPS, SEARCHABLE_BIOMES, type BiomeDef, type BiomeGroup } from '../data/biomes';
 import { STRUCTURES, type StructureDef, type VariantGroup } from '../data/structures';
-import type { Preset } from '../data/presets';
+import type { Preset, PresetCriterion, PresetRule } from '../data/presets';
 import { KIND, type Criterion, type CriterionKind, type ProximityRule } from '../search/types';
 
 /** Distance a newly ticked criterion starts at, in blocks. */
@@ -226,6 +226,41 @@ export class CriterionPicker {
       const [kind, id] = k.split(':').map(Number);
       return { kind: kind as CriterionKind, id: id!, variants: sel.variants, radius: sel.radius };
     });
+  }
+
+  /**
+   * The current selection in the shape a preset is stored in.
+   *
+   * Rules are written down by which criteria they join rather than by
+   * position, so the saved preset survives the list being reordered, and
+   * so applying it later can drop a rule whose ends are not both available.
+   * "Any" choices are left out entirely, which is what absent already means.
+   */
+  exportSelection(): { criteria: PresetCriterion[]; rules: PresetRule[] } {
+    const criteria: PresetCriterion[] = [];
+    for (const [k, sel] of this.selected) {
+      const [kind, id] = k.split(':').map(Number);
+      const variants: Record<string, string> = {};
+      for (const [gk, value] of Object.entries(sel.variants)) {
+        if (value !== null) variants[gk] = value;
+      }
+      criteria.push({
+        kind: kind as CriterionKind,
+        id: id!,
+        radius: sel.radius,
+        ...(Object.keys(variants).length > 0 ? { variants } : {}),
+      });
+    }
+
+    const end = (k: string): readonly [CriterionKind, number] => {
+      const [kind, id] = k.split(':').map(Number);
+      return [kind as CriterionKind, id!];
+    };
+    const rules: PresetRule[] = this.rules
+      .filter((r) => this.selected.has(r.a) && this.selected.has(r.b))
+      .map((r) => ({ a: end(r.a), b: end(r.b), maxDist: r.maxDist }));
+
+    return { criteria, rules };
   }
 
   /** Rules translated to indices into `criteria()`. Dangling rules are dropped. */
