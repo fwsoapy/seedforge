@@ -284,7 +284,9 @@ async function main(): Promise<void> {
     () => {
       showError(null);
       // Any hand edit means the selection is no longer that preset.
-      presetList.querySelectorAll('.preset.on').forEach((el) => el.classList.remove('on'));
+      presetList
+        .querySelectorAll('.preset.on, .preset-option.on')
+        .forEach((el) => el.classList.remove('on'));
     },
   );
   picker.render();
@@ -324,7 +326,7 @@ async function main(): Promise<void> {
   const usePreset = (preset: Preset): void => {
     showError(null);
     picker.applyPreset(preset);
-    presetList.querySelectorAll('.preset').forEach((el) => {
+    presetList.querySelectorAll('.preset, .preset-option').forEach((el) => {
       el.classList.toggle('on', (el as HTMLElement).dataset['preset'] === preset.key);
     });
   };
@@ -372,11 +374,61 @@ async function main(): Promise<void> {
     return slot;
   };
 
+  /**
+   * A tile holding several presets that are variations on one idea: a heading,
+   * a row of options, and one shared blurb. Same footprint as a single preset.
+   */
+  const presetGroup = (title: string, members: readonly Preset[]): HTMLElement => {
+    const slot = document.createElement('div');
+    slot.className = 'preset-slot';
+
+    const tile = document.createElement('div');
+    tile.className = 'preset preset-group';
+
+    const name = document.createElement('span');
+    name.className = 'preset-name';
+    name.textContent = title;
+
+    const options = document.createElement('div');
+    options.className = 'preset-options';
+    for (const preset of members) {
+      const opt = document.createElement('button');
+      opt.type = 'button';
+      opt.className = 'preset-option';
+      opt.dataset['preset'] = preset.key;
+      opt.textContent = preset.option ?? preset.name;
+      opt.title = preset.name;
+      opt.addEventListener('click', () => usePreset(preset));
+      options.append(opt);
+    }
+
+    const blurb = document.createElement('span');
+    blurb.className = 'preset-blurb';
+    blurb.textContent = members[0]?.blurb ?? '';
+
+    tile.append(name, options, blurb);
+    slot.append(tile);
+    return slot;
+  };
+
   function renderPresets(): void {
-    presetList.replaceChildren(
-      ...PRESETS.map((p) => presetButton(p, false)),
-      ...custom.map((p) => presetButton(p, true)),
-    );
+    const tiles: HTMLElement[] = [];
+    // Consecutive presets sharing a group collapse into one tile.
+    for (let i = 0; i < PRESETS.length; ) {
+      const preset = PRESETS[i]!;
+      if (preset.group === undefined) {
+        tiles.push(presetButton(preset, false));
+        i += 1;
+        continue;
+      }
+      const members: Preset[] = [];
+      while (i < PRESETS.length && PRESETS[i]!.group === preset.group) {
+        members.push(PRESETS[i]!);
+        i += 1;
+      }
+      tiles.push(presetGroup(preset.group, members));
+    }
+    presetList.replaceChildren(...tiles, ...custom.map((p) => presetButton(p, true)));
     presetSaveBtn.disabled = custom.length >= MAX_CUSTOM_PRESETS;
   }
 

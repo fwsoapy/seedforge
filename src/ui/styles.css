@@ -322,6 +322,25 @@ input:focus, select:focus { outline: 2px solid var(--accent-dark); outline-offse
 .preset-save .field-hint { flex-basis: 100%; margin: 0; }
 .preset-blurb { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
 
+/* A group is a tile rather than a button: the options inside it are the
+ * controls, so it must not look or behave clickable itself. */
+.preset-group { cursor: default; }
+.preset-group:hover { border-color: var(--line); }
+
+.preset-options { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 1px; }
+
+.preset-option {
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+  color: var(--text);
+  border-radius: 7px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+}
+.preset-option:hover { border-color: var(--accent-dark); }
+.preset-option.on { border-color: var(--accent-dark); background: var(--selected-bg); }
+
 .chip-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(186px, 1fr));

@@ -38,6 +38,14 @@ export interface Preset {
   readonly blurb: string;
   readonly criteria: readonly PresetCriterion[];
   readonly rules: readonly PresetRule[];
+  /**
+   * Presets sharing a group render as one tile, headed by this text with a
+   * row of options inside it. Used where several presets are variations on
+   * the same idea and should not each take a tile of their own.
+   */
+  readonly group?: string;
+  /** Short label for the button inside a group, where `name` is too long. */
+  readonly option?: string;
 }
 
 const s = (id: number, radius: number, variants?: Record<string, string>): PresetCriterion => ({
@@ -58,6 +66,12 @@ const near = (
 const S = KIND.structure;
 const B = KIND.biome;
 
+/** Heading for the three-way advanced speedrun tile. */
+const ADVANCED = 'Advanced Speedrun';
+const ADVANCED_BLURB =
+  'Pick a start, then template 8 portal, bastion, fortress and ring 1. '
+  + 'Very restrictive, so expect a long search.';
+
 export const PRESETS: readonly Preset[] = [
   {
     key: 'simple-speedrun',
@@ -69,12 +83,17 @@ export const PRESETS: readonly Preset[] = [
     ],
     rules: [near([S, STRUCT.Ruined_Portal], [S, STRUCT.Village], 200)],
   },
+  /*
+   * Three ways to open the same run, sharing one tile. Each is the same chain
+   * after the start: an above-ground template 8 portal, a bastion of a given
+   * type, a fortress off it, and a ring 1 stronghold.
+   */
   {
-    key: 'advanced-speedrun',
-    name: 'Advanced Speedrun',
-    blurb:
-      'The full chain: plains village, template 8 portal, treasure bastion, fortress, ring 1. '
-      + 'Very restrictive, so expect a long search.',
+    key: 'advanced-speedrun-village',
+    group: ADVANCED,
+    option: 'Village',
+    name: 'Advanced Speedrun: Village',
+    blurb: ADVANCED_BLURB,
     criteria: [
       s(STRUCT.Village, 100, { biome: 'plains', abandoned: 'no' }),
       s(STRUCT.Ruined_Portal, 200, {
@@ -82,14 +101,60 @@ export const PRESETS: readonly Preset[] = [
         portalPlacement: 'surface',
         portalTemplate: '8',
       }),
-      s(STRUCT.Bastion, 500, { bastionType: 'treasure' }),
-      s(STRUCT.Fortress, 500),
+      s(STRUCT.Bastion, 300, { bastionType: 'treasure' }),
+      s(STRUCT.Fortress, 300),
       s(STRUCT.Stronghold, 1500, { ring: '1' }),
     ],
     rules: [
       near([S, STRUCT.Ruined_Portal], [S, STRUCT.Village], 100),
       near([S, STRUCT.Bastion], [S, STRUCT.Ruined_Portal], 100),
       near([S, STRUCT.Fortress], [S, STRUCT.Bastion], 200),
+    ],
+  },
+  {
+    key: 'advanced-speedrun-treasure',
+    group: ADVANCED,
+    option: 'Treasure',
+    name: 'Advanced Speedrun: Treasure',
+    blurb: ADVANCED_BLURB,
+    criteria: [
+      s(STRUCT.Ruined_Portal, 100, {
+        portalType: 'normal',
+        portalPlacement: 'surface',
+        portalTemplate: '8',
+      }),
+      s(STRUCT.Treasure, 25),
+      s(STRUCT.Bastion, 300, { bastionType: 'bridge' }),
+      s(STRUCT.Fortress, 300),
+      s(STRUCT.Stronghold, 1500, { ring: '1' }),
+    ],
+    rules: [
+      near([S, STRUCT.Bastion], [S, STRUCT.Ruined_Portal], 100),
+      near([S, STRUCT.Fortress], [S, STRUCT.Bastion], 200),
+      near([S, STRUCT.Ruined_Portal], [S, STRUCT.Treasure], 50),
+    ],
+  },
+  {
+    key: 'advanced-speedrun-shipwreck',
+    group: ADVANCED,
+    option: 'Shipwreck',
+    name: 'Advanced Speedrun: Shipwreck',
+    blurb: ADVANCED_BLURB,
+    criteria: [
+      s(STRUCT.Ruined_Portal, 100, {
+        portalType: 'normal',
+        portalPlacement: 'surface',
+        portalTemplate: '8',
+      }),
+      s(STRUCT.Shipwreck, 200),
+      s(STRUCT.Bastion, 500, { bastionType: 'treasure' }),
+      s(STRUCT.Fortress, 500),
+      s(STRUCT.Stronghold, 1500, { ring: '1' }),
+    ],
+    rules: [
+      near([S, STRUCT.Bastion], [S, STRUCT.Ruined_Portal], 100),
+      near([S, STRUCT.Fortress], [S, STRUCT.Bastion], 200),
+      near([S, STRUCT.Ruined_Portal], [S, STRUCT.Shipwreck], 200),
     ],
   },
   {
