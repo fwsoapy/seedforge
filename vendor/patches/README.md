@@ -122,6 +122,30 @@ generator from 1.18, which is why Bedrock is gated to 1.18 and later rather
 than offered for the whole version list. Chunkbiomes makes the same call: its
 `isViableBedrockStructurePos` delegates straight to cubiomes' Java one.
 
+### Ruined portal variants changed in 26.3
+
+26.3 dropped `air_pocket_probability` from 0.5 to 0 on every on-surface portal
+setup: `on_land_surface` in both `ruined_portal` and `ruined_portal_mountain`,
+and the single setup in `ruined_portal_jungle`. Mojang's own worldgen data
+holds 0.5 through 1.21.11, 26.1 and 26.2, and 0.0 from 26.3.
+
+The roll goes with the probability. Upstream already skips the draw where the
+probability is 1.0, so the game only draws when it is neither 0 nor 1, and
+that model is what has kept portal variants right from 1.16 to 26.2. Taking
+the draw anyway on 26.3 leaves everything after it in the stream one step out:
+the giant flag reads the template's float, the template reads the rotation's.
+A portal filtered to "normal, template 8" then comes back as neither, which is
+exactly how this was reported.
+
+The patch skips that draw from 26.3 on. Versions up to 26.2 are untouched, and
+a test pins 26.2 to matching 1.21.11 so they stay that way.
+
+Worth being clear about what is and is not established here. The probability
+change is Mojang's data, checked version by version. That the draw disappears
+with it is inferred from upstream's own structure rather than read from the
+game's code, and the resulting 26.3 answers have not been confirmed against a
+running game.
+
 ### Known limits
 
 - Desert pyramids, jungle temples, witch huts and igloos share a grid; the

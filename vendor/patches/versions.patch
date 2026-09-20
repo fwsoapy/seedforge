@@ -1,5 +1,5 @@
---- a/biomes.h	2026-09-20 01:15:02.803559869 +0000
-+++ b/biomes.h	2026-09-20 01:15:16.430379054 +0000
+--- a/biomes.h	2026-09-20 02:31:06.607554301 +0000
++++ b/biomes.h	2026-09-20 02:31:06.626636521 +0000
 @@ -6,6 +6,7 @@
  {   // MC_1_X refers to the latest patch of the respective 1.X release.
      // NOTE: Development effort focuses on just the newest patch for each major
@@ -44,8 +44,8 @@
  };
  
  
---- a/biomes.c	2026-09-20 01:15:02.803543002 +0000
-+++ b/biomes.c	2026-09-20 01:15:16.430613489 +0000
+--- a/biomes.c	2026-09-20 02:31:06.607460049 +0000
++++ b/biomes.c	2026-09-20 02:31:06.626793368 +0000
 @@ -12,7 +12,13 @@
              return 1;
  
@@ -69,8 +69,8 @@
          return forest;
  
      case snowy_tundra:
---- a/biomenoise.c	2026-09-20 01:15:02.803468385 +0000
-+++ b/biomenoise.c	2026-09-20 01:15:16.430895867 +0000
+--- a/biomenoise.c	2026-09-20 02:31:06.606900005 +0000
++++ b/biomenoise.c	2026-09-20 02:31:06.626984118 +0000
 @@ -5,6 +5,9 @@
  #include "tables/btree19.h"
  #include "tables/btree20.h"
@@ -112,8 +112,8 @@
          bt = &btree21wd;
      else if (mc >= MC_1_20_6)
          bt = &btree20;
---- a/finders.c	2026-09-20 01:15:02.803835562 +0000
-+++ b/finders.c	2026-09-20 01:15:02.813182861 +0000
+--- a/finders.c	2026-09-20 02:31:06.609457415 +0000
++++ b/finders.c	2026-09-20 02:31:21.670755136 +0000
 @@ -1282,6 +1282,7 @@
  
      case Mansion:
@@ -122,7 +122,45 @@
          return biomeID == dark_forest || biomeID == dark_forest_hills;
  
      case Fortress:
-@@ -5470,6 +5471,10 @@
+@@ -2198,17 +2199,35 @@
+             }
+             if (r->biome == -1)
+                 r->biome = plains;
++            /*
++             * 26.3 dropped air_pocket_probability from 0.5 to 0 for every
++             * on-surface setup: ruined_portal and ruined_portal_mountain's
++             * on_land_surface, and ruined_portal_jungle. Checked against
++             * Mojang's own worldgen data, which holds 0.5 through 1.21.11,
++             * 26.1 and 26.2, and 0.0 from 26.3.
++             *
++             * The roll goes with the probability. This code already skips the
++             * draw where the probability is 1.0, so the game only draws when
++             * it is neither 0 nor 1 - and that model is what has made portal
++             * variants right for 1.16 through 26.2. Taking the draw anyway on
++             * 26.3 puts everything after it in the stream one step out: the
++             * giant flag reads the template's float, the template reads the
++             * rotation's, and so on. That is why a portal filtered to
++             * "normal, template 8" came out as neither.
++             */
++            int airRoll = mc <= MC_26_2;
+             if (r->biome == plains || r->biome == mountains)
+             {
+                 r->underground = nextFloat(&rng) < 0.5f;
+                 if (r->underground)
+                     r->airpocket = 1;
+-                else
++                else if (airRoll)
+                     r->airpocket = nextFloat(&rng) < 0.5f;
+             }
+             else if (r->biome == jungle)
+             {
+-                r->airpocket = nextFloat(&rng) < 0.5f;
++                if (airRoll)
++                    r->airpocket = nextFloat(&rng) < 0.5f;
+             }
+         }
+         r->giant = nextFloat(&rng) < 0.05f;
+@@ -5470,6 +5489,10 @@
  {pale_garden             , -1500, 2000,  3000, IMAX,   300, IMAX, -7799,  500,  IMIN, IMAX,  2666, IMAX},
  {-1,0,0,0,0,0,0,0,0,0,0,0,0}};
  
@@ -133,7 +171,7 @@
  
  /**
   * Gets the min/max parameter values within which a biome change can occur.
-@@ -5508,6 +5513,14 @@
+@@ -5508,6 +5531,14 @@
      if (mc <= MC_1_17)
          return NULL;
      int i;

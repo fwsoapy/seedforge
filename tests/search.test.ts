@@ -303,6 +303,60 @@ describe('26.3', () => {
   });
 });
 
+describe('ruined portal variants on 26.3', () => {
+  const PORTAL = STRUCT.Ruined_Portal;
+  const TRAIT_GIANT = 2;
+  const TRAIT_UNDERGROUND = 4;
+  const MC_1_21_11 = 35;
+
+  /** Normal, above ground, template 8 - the Advanced Speedrun combination. */
+  const combo = (mc: number) =>
+    search(
+      mc, 0, 0,
+      [[K_STRUCT, PORTAL, -1, 0, TRAIT_GIANT | TRAIT_UNDERGROUND, 0, 0, 0, 300, 8]],
+      0n, 3_000,
+    ).map((f) => String(f.seed));
+
+  /*
+   * 26.3 dropped air_pocket_probability from 0.5 to 0 on every on-surface
+   * portal setup, and the roll went with it. Taking that roll anyway left
+   * everything after it in the stream one step out, so a portal asked for as
+   * "normal, template 8" came back as neither.
+   */
+  it('leaves every version before 26.3 exactly as it was', () => {
+    expect(combo(MC_26_2)).toEqual(combo(MC_1_21_11));
+  });
+
+  it('no longer answers 26.3 the way it answers 26.2', () => {
+    expect(combo(MC_26_3)).not.toEqual(combo(MC_26_2));
+  });
+
+  it('still filters by template on 26.3 rather than ignoring it', () => {
+    // Small budget on purpose: an unfiltered portal search fills the 64-match
+    // output cap within about 130 seeds, and two capped counts compare nothing.
+    const over = (subtype: number) =>
+      search(
+        MC_26_3, 0, 0, [[K_STRUCT, PORTAL, -1, 0, 0, 0, 0, 0, 300, subtype]], 0n, 100,
+      ).length;
+    const all = over(-1);
+    const one = over(8);
+    expect(all).toBeGreaterThan(10);
+    expect(all).toBeLessThan(64);
+    // One template in ten, so it has to be markedly rarer than no filter.
+    expect(one).toBeLessThan(all / 3);
+  });
+
+  it('still refuses templates a giant portal cannot use', () => {
+    // Giants only draw from templates 1-3.
+    const giant8 = search(
+      MC_26_3, 0, 0,
+      [[K_STRUCT, PORTAL, -1, TRAIT_GIANT, TRAIT_GIANT, 0, 0, 0, 300, 8]],
+      0n, 3_000,
+    );
+    expect(giant8.length).toBe(0);
+  });
+});
+
 describe('double-checking against the exact spawn', () => {
   const ORIGIN = 0;
   const ESTIMATE = 1;
