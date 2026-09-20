@@ -18,6 +18,7 @@ export const BIOME = {
   sunflower_plains: 129,
   flower_forest: 132,
   ice_spikes: 140,
+  dappled_forest: 188,
   old_growth_birch_forest: 155,
   eroded_badlands: 165,
   bamboo_jungle: 168,
@@ -92,6 +93,7 @@ export const SEARCHABLE_BIOMES: readonly BiomeDef[] = [
   // --- exotic ---
   { id: BIOME.mushroom_fields, name: 'Mushroom fields', group: 'exotic', sampleY: 70 },
   { id: BIOME.cherry_grove, name: 'Cherry grove', group: 'exotic', sampleY: 100 },
+  { id: BIOME.dappled_forest, name: 'Dappled forest', group: 'exotic', sampleY: 70 },
   { id: BIOME.ice_spikes, name: 'Ice spikes', group: 'exotic', sampleY: 80 },
   { id: BIOME.flower_forest, name: 'Flower forest', group: 'exotic', sampleY: 70 },
   { id: BIOME.old_growth_birch_forest, name: 'Old growth birch forest', group: 'exotic', sampleY: 70 },

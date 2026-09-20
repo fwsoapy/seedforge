@@ -48,7 +48,7 @@ account and nothing leaves your machine.
   make sense on Java are hidden rather than quietly answered wrong.
 - **Check a single seed.** Paste a seed instead of searching for one, and see
   what your criteria find in it on the map.
-- **Version aware.** Pick anything from 1.7 to 26.2; the structure and biome
+- **Version aware.** Pick anything from 1.7 to 26.3; the structure and biome
   lists change to match what actually exists in that version.
 - **Multi-threaded.** One Web Worker per logical CPU by default, each scanning
   its own stripe of the seed space. Set the thread count yourself under
@@ -62,6 +62,10 @@ account and nothing leaves your machine.
   Enlarge it for a full-size view with scroll to zoom and drag to pan.
 - **Private by design.** 100% client-side. No API keys, no analytics, no data
   collection.
+
+- **Save and share seeds.** Keep up to 5 seeds in your browser, and turn any
+  result into a link. The link carries the seed and the search inside it, so
+  opening it anywhere reproduces the result. Links stop working after a week.
 
 ## How it works
 
@@ -101,13 +105,13 @@ in a database of precomputed seeds.
 
 ## Supported Minecraft versions
 
-Anything from 1.7 up to **26.2**, the current release, for Java. Bedrock
+Anything from 1.7 up to **26.3**, the current release, for Java. Bedrock
 searching covers 1.18 and later - that is when the two editions were unified
 onto the same world generator, and before it the biome checks would not mean
 anything. See [`vendor/patches/`](vendor/patches/README.md) for how Bedrock
 placement works and what it cannot do. Minecraft moved to
 year-based version numbers in 2026: 26.1 was the first game drop of that year,
-26.2 "Chaos Cubed" the second.
+26.2 "Chaos Cubed" the second and 26.3 "Wilderness Bound" the third.
 
 Upstream Cubiomes stopped at the 1.21 Winter Drop in November 2024, so the
 versions past it are built from a patch kept in
@@ -121,6 +125,7 @@ pinned submodule is never modified. What the patch covers:
 | 1.21.6 - 1.21.11 | No world generation changes. |
 | 26.1 (Tiny Takeover) | No world generation changes. |
 | 26.2 (Chaos Cubed) | Added sulfur caves, which are searchable. |
+| 26.3 (Wilderness Bound) | Added the dappled forest, which is searchable. Its abandoned camp structure is not modelled by any open-source generator yet, so it is not offered. |
 
 | Version | Notable structures added |
 | --- | --- |
@@ -135,6 +140,7 @@ pinned submodule is never modified. What the patch covers:
 | 1.20 | - |
 | 1.21 | Trial chambers |
 | 26.2 | Sulfur caves |
+| 26.3 | Dappled forest |
 
 Which structures and biomes appear is decided by the generator itself rather
 than a hardcoded table, so the lists are always consistent with the code that
@@ -264,6 +270,21 @@ suspects.
 
 Always verify a seed in-game before committing a world to it.
 
+### Share links
+
+There is no server behind this site, so a share link carries its payload in
+the URL fragment rather than pointing at a stored record. That has one real
+benefit and one real limit.
+
+The benefit: browsers never send the fragment to the host, so a shared seed
+does not reach the web server's logs.
+
+The limit: the week-long expiry is a timestamp inside the link that the
+receiving page checks. It stops a link working for anyone who opens it
+normally, which is what it is for, but it is not enforcement. Whoever holds
+the link holds the data, and an expiry they can edit is one they can remove.
+Do not share anything through it that you would mind someone keeping.
+
 ## Roadmap
 
 - [x] Biome criteria alongside structures
@@ -315,8 +336,8 @@ No. There is no backend and no analytics. Everything is computed in your
 browser, and closing the tab is the end of it.
 
 **Which Minecraft versions are supported?**
-Java 1.7 through 26.2, and Bedrock 1.18 and later. Minecraft moved to
-year-based version numbers in 2026, so 26.2 is the current release.
+Java 1.7 through 26.3, and Bedrock 1.18 and later. Minecraft moved to
+year-based version numbers in 2026, so 26.3 is the current release.
 
 **Can I search for ravines, caves or ore?**
 No. Ravines and caves are carved into terrain per chunk rather than placed on

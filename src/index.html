@@ -25,7 +25,7 @@
     <meta property="og:title" content="SeedForge - Minecraft Seed Finder for Java and Bedrock" />
     <meta
       property="og:description"
-      content="Search Minecraft seeds where every structure and biome you pick generates near spawn. Per-structure distances, proximity rules, versions up to 26.2. Runs entirely in your browser."
+      content="Search Minecraft seeds where every structure and biome you pick generates near spawn. Per-structure distances, proximity rules, versions up to 26.3. Runs entirely in your browser."
     />
     <meta property="og:image" content="https://fwsoapy.github.io/seedforge/og.png" />
     <meta property="og:image:width" content="1200" />
@@ -71,7 +71,7 @@
           "Proximity rules between two structures, including Overworld to Nether",
           "Ruined portal type, placement and template filters",
           "Bastion remnant type and stronghold ring filters",
-          "Java Edition 1.7 through 26.2 and Bedrock Edition 1.18 and later",
+          "Java Edition 1.7 through 26.3 and Bedrock Edition 1.18 and later",
           "Multi-threaded search using Web Workers",
           "No account, no backend, no seed database"
         ]
@@ -262,6 +262,18 @@
         </p>
       </section>
 
+      <section class="panel" id="saved-panel" hidden>
+        <div class="section-head">
+          <h2>Saved seeds</h2>
+          <p class="hint">
+            Kept in this browser only. A share link carries the seed inside it and stops working
+            after a week.
+          </p>
+        </div>
+        <div id="saved-list" class="saved-list"></div>
+        <p id="saved-note" class="field-hint"></p>
+      </section>
+
       <section class="panel" id="results-panel">
         <h2>Results</h2>
         <p id="empty" class="hint">No results yet. Pick some structures and hit search.</p>
@@ -356,6 +368,19 @@
             and requires the criteria to hold from there too. It is a filter on an origin search,
             not a faster way to run a spawn search: the radii still mean "from (0, 0)", with "and
             from the real spawn as well" added on top.
+          </li>
+          <li>
+            26.3 "Wilderness Bound" adds the dappled forest, which is searchable. Its other new
+            structure, the abandoned camp, is not: no open-source generator models it yet, so it is
+            left out rather than guessed at.
+          </li>
+          <li>
+            A share link carries the seed and the search inside it rather than pointing at a stored
+            copy, because there is no server behind this site. Two things follow. The fragment is
+            never sent to the host, so a shared seed does not reach the web server's logs. And the
+            week-long expiry is a timestamp inside the link that the page checks: it stops a link
+            working for anyone opening it normally, but whoever holds the link holds the data, so
+            do not share anything you would mind someone keeping.
           </li>
           <li>Always verify a seed in-game before committing a world to it.</li>
         </ul>

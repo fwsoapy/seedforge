@@ -4,7 +4,7 @@
  * ids are what the WASM core expects.
  *
  * Minecraft moved to year-based version numbers in 2026: 26.1 was the first
- * game drop of that year, 26.2 the second.
+ * game drop of that year, 26.2 the second and 26.3 the third.
  */
 
 export interface McVersion {
@@ -15,6 +15,7 @@ export interface McVersion {
 }
 
 export const MC_VERSIONS: readonly McVersion[] = [
+  { id: 40, label: '26.3' },
   { id: 39, label: '26.2' },
   { id: 36, label: '26.1' },
   { id: 35, label: '1.21.11' },
@@ -40,5 +41,5 @@ export const MC_VERSIONS: readonly McVersion[] = [
   { id: 10, label: '1.7' },
 ] as const;
 
-/** 26.2 is the current release, so it is what the app opens on. */
-export const DEFAULT_VERSION = 39;
+/** 26.3 is the current release, so it is what the app opens on. */
+export const DEFAULT_VERSION = 40;

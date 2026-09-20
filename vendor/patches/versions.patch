@@ -1,5 +1,5 @@
---- a/biomes.h
-+++ b/biomes.h
+--- a/biomes.h	2026-09-20 01:15:02.803559869 +0000
++++ b/biomes.h	2026-09-20 01:15:16.430379054 +0000
 @@ -6,6 +6,7 @@
  {   // MC_1_X refers to the latest patch of the respective 1.X release.
      // NOTE: Development effort focuses on just the newest patch for each major
@@ -8,7 +8,7 @@
      MC_UNDEF,
      MC_B1_7,
      MC_B1_8,
-@@ -34,9 +35,20 @@
+@@ -34,9 +35,21 @@
      MC_1_20_6, MC_1_20 = MC_1_20_6,
      MC_1_21_1,
      MC_1_21_3,
@@ -28,22 +28,25 @@
 +    MC_26_1_1,                       // hotfix
 +    MC_26_1_2,                       // hotfix
 +    MC_26_2,                         // Chaos Cubed (sulfur caves)
-+    MC_NEWEST = MC_26_2,
++    MC_26_3,                         // Wilderness Bound (dappled forest)
++    MC_NEWEST = MC_26_3,
  };
  
  enum Dimension
-@@ -173,6 +185,8 @@
+@@ -173,6 +186,10 @@
      cherry_grove                    = 185,
      // 1.21 Winter Drop
      pale_garden                     = 186,
 +    // 26.2
 +    sulfur_caves                    = 187,
++    // 26.3
++    dappled_forest                  = 188,
  };
  
  
---- a/biomes.c
-+++ b/biomes.c
-@@ -12,7 +12,10 @@
+--- a/biomes.c	2026-09-20 01:15:02.803543002 +0000
++++ b/biomes.c	2026-09-20 01:15:16.430613489 +0000
+@@ -12,7 +12,13 @@
              return 1;
  
          if (id == pale_garden)
@@ -52,21 +55,33 @@
 +
 +        if (id == sulfur_caves)
 +            return mc >= MC_26_2;
++
++        if (id == dappled_forest)
++            return mc >= MC_26_3;
  
          if (id == cherry_grove)
              return mc >= MC_1_20;
---- a/biomenoise.c
-+++ b/biomenoise.c
-@@ -5,6 +5,8 @@
+@@ -279,6 +285,7 @@
+     case tall_birch_forest:
+     case tall_birch_hills:
+     case dark_forest_hills:
++    case dappled_forest:
+         return forest;
+ 
+     case snowy_tundra:
+--- a/biomenoise.c	2026-09-20 01:15:02.803468385 +0000
++++ b/biomenoise.c	2026-09-20 01:15:16.430895867 +0000
+@@ -5,6 +5,9 @@
  #include "tables/btree19.h"
  #include "tables/btree20.h"
  #include "tables/btree21wd.h"
 +#include "tables/btree21_5.h"
 +#include "tables/btree262.h"
++#include "tables/btree263.h"
  
  #include <stdlib.h>
  #include <string.h>
-@@ -1453,11 +1455,23 @@
+@@ -1453,11 +1456,29 @@
          btree21wd_steps, &btree21wd_param[0][0], btree21wd_nodes, btree21wd_order,
          sizeof(btree21wd_nodes) / sizeof(uint64_t)
      };
@@ -78,12 +93,18 @@
 +        btree262_steps, &btree262_param[0][0], btree262_nodes, btree262_order,
 +        sizeof(btree262_nodes) / sizeof(uint64_t)
 +    };
++    static const BiomeTree btree263 = {
++        btree263_steps, &btree263_param[0][0], btree263_nodes, btree263_order,
++        sizeof(btree263_nodes) / sizeof(uint64_t)
++    };
  
      const BiomeTree *bt;
      int idx;
  
 -    if (mc >= MC_1_21_WD)
-+    if (mc >= MC_26_2)
++    if (mc >= MC_26_3)
++        bt = &btree263;
++    else if (mc >= MC_26_2)
 +        bt = &btree262;
 +    else if (mc >= MC_1_21_5)
 +        bt = &btree21_5;
@@ -91,8 +112,8 @@
          bt = &btree21wd;
      else if (mc >= MC_1_20_6)
          bt = &btree20;
---- a/finders.c
-+++ b/finders.c
+--- a/finders.c	2026-09-20 01:15:02.803835562 +0000
++++ b/finders.c	2026-09-20 01:15:02.813182861 +0000
 @@ -1282,6 +1282,7 @@
  
      case Mansion:

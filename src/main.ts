@@ -15,6 +15,17 @@ import {
   summarise,
 } from './data/custom-presets';
 import { PRESETS, type Preset } from './data/presets';
+import {
+  MAX_SAVED_SEEDS,
+  SHARE_DAYS,
+  daysLeft,
+  decodeShare,
+  encodeShare,
+  loadSavedSeeds,
+  newSeedKey,
+  saveSavedSeeds,
+  type SeedRecord,
+} from './data/saved-seeds';
 import { DEFAULT_VERSION, MC_VERSIONS } from './data/versions';
 import { SearchEngine } from './search/engine';
 import { SearchPool, suggestedWorkerCount } from './search/pool';
@@ -22,7 +33,7 @@ import { sortByCloseness } from './search/score';
 import { EDITION, KIND, TARGET, type CriterionKind, type Edition, type Match, type SearchConfig, type TargetMode } from './search/types';
 import { CriterionPicker } from './ui/picker';
 import { initTheme } from './ui/theme';
-import { pruneMaps, renderResult, repaintMaps } from './ui/results';
+import { pruneMaps, renderResult, repaintMaps, type ResultActions } from './ui/results';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -50,6 +61,9 @@ const presetList = $<HTMLElement>('preset-list');
 const presetNameInput = $<HTMLInputElement>('preset-name');
 const presetSaveBtn = $<HTMLButtonElement>('preset-save');
 const presetNote = $<HTMLElement>('preset-note');
+const savedPanel = $<HTMLElement>('saved-panel');
+const savedList = $<HTMLElement>('saved-list');
+const savedNote = $<HTMLElement>('saved-note');
 const errorEl = $<HTMLParagraphElement>('error');
 const progressPanel = $<HTMLElement>('progress-panel');
 const resultsEl = $<HTMLElement>('results');
@@ -83,6 +97,10 @@ let pausedAt = 0;
 let results: Match[] = [];
 /** Set when new matches have arrived but the list has not been rebuilt yet. */
 let resultsDirty = false;
+/** The query the current results came from, carried by a save or a share. */
+let lastQuery: SearchConfig | null = null;
+/** Filled in main(), once the picker and storage exist. */
+let resultActions: ResultActions | undefined;
 /** Drives the stats readout independently of how often workers report. */
 let statsTimer: number | null = null;
 
@@ -220,7 +238,9 @@ function renderResults(): void {
   emptyEl.hidden = results.length > 0;
   sortNoteEl.hidden = results.length === 0;
   sortByCloseness(results);
-  resultsEl.replaceChildren(...results.map((m) => renderResult(m, lastRadii)));
+  resultsEl.replaceChildren(
+    ...results.map((m) => renderResult(m, lastRadii, resultActions)),
+  );
   // The cards just replaced are detached now, so their map entries can go.
   pruneMaps();
 }
@@ -432,6 +452,179 @@ async function main(): Promise<void> {
     presetSaveBtn.disabled = custom.length >= MAX_CUSTOM_PRESETS;
   }
 
+  /* --- saved seeds and share links ------------------------------------ */
+
+  let saved = loadSavedSeeds();
+
+  const setSavedNote = (text: string): void => {
+    savedNote.textContent = text;
+  };
+
+  /** The query a result came from, in the shape a seed record stores. */
+  const recordFor = (m: Match): SeedRecord | null => {
+    if (!lastQuery) return null;
+    const { criteria, rules } = picker.exportSelection();
+    return {
+      seed: BigInt.asIntN(64, m.seed).toString(),
+      mc: lastQuery.mc,
+      edition: lastQuery.edition,
+      target: lastQuery.target,
+      criteria,
+      rules,
+    };
+  };
+
+  const shareUrl = (record: SeedRecord): string => {
+    const base = `${location.origin}${location.pathname}`;
+    return `${base}#s=${encodeShare(record)}`;
+  };
+
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  function renderSaved(): void {
+    savedPanel.hidden = saved.length === 0;
+    savedList.replaceChildren(...saved.map((entry) => {
+      const row = document.createElement('div');
+      row.className = 'saved';
+
+      const seed = document.createElement('span');
+      seed.className = 'saved-seed';
+      seed.textContent = entry.seed;
+
+      const meta = document.createElement('span');
+      meta.className = 'saved-meta';
+      const version = MC_VERSIONS.find((v) => v.id === entry.mc)?.label ?? `MC #${entry.mc}`;
+      const edition = entry.edition === EDITION.bedrock ? 'Bedrock' : 'Java';
+      meta.textContent = `${edition} ${version} - ${entry.criteria.length} criteria`;
+
+      const actions = document.createElement('div');
+      actions.className = 'saved-actions';
+
+      const open = document.createElement('button');
+      open.type = 'button';
+      open.className = 'secondary small';
+      open.textContent = 'Open';
+      open.addEventListener('click', () => applyRecord(entry, 'Loaded that seed.'));
+
+      const share = document.createElement('button');
+      share.type = 'button';
+      share.className = 'secondary small';
+      share.textContent = 'Share';
+      share.addEventListener('click', () => {
+        void copyToClipboard(shareUrl(entry)).then((ok) => {
+          setSavedNote(ok
+            ? `Link copied. It stops working in ${SHARE_DAYS} days.`
+            : 'Could not reach the clipboard. Copy the address bar after opening the seed.');
+        });
+      });
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'ghost small';
+      remove.textContent = 'Delete';
+      remove.addEventListener('click', () => {
+        saved = saved.filter((x) => x.key !== entry.key);
+        saveSavedSeeds(saved);
+        renderSaved();
+        setSavedNote('Deleted.');
+      });
+
+      actions.append(open, share, remove);
+      row.append(seed, meta, actions);
+      return row;
+    }));
+  }
+
+  const saveSeed = (m: Match): void => {
+    const record = recordFor(m);
+    if (!record) {
+      setSavedNote('Nothing to save yet.');
+      return;
+    }
+    if (saved.some((x) => x.seed === record.seed)) {
+      savedPanel.hidden = false;
+      setSavedNote('That seed is already saved.');
+      return;
+    }
+    if (saved.length >= MAX_SAVED_SEEDS) {
+      savedPanel.hidden = false;
+      setSavedNote(`You can keep ${MAX_SAVED_SEEDS} seeds. Delete one to make room.`);
+      return;
+    }
+    saved = [...saved, { ...record, key: newSeedKey(), savedAt: Date.now() }];
+    if (!saveSavedSeeds(saved)) {
+      saved = loadSavedSeeds();
+      renderSaved();
+      setSavedNote('This browser would not let the page store anything, so it was not saved.');
+      return;
+    }
+    renderSaved();
+    setSavedNote(`Saved. ${saved.length} of ${MAX_SAVED_SEEDS} kept in this browser.`);
+  };
+
+  const shareSeed = (m: Match, button: HTMLButtonElement): void => {
+    const record = recordFor(m);
+    if (!record) return;
+    void copyToClipboard(shareUrl(record)).then((ok) => {
+      button.textContent = ok ? 'Copied' : 'Failed';
+      setTimeout(() => (button.textContent = 'Share'), 1400);
+      savedPanel.hidden = saved.length === 0 && !ok;
+      setSavedNote(ok
+        ? `Share link copied. It carries the seed inside it and stops working in ${SHARE_DAYS} days.`
+        : 'Could not reach the clipboard.');
+    });
+  };
+
+  resultActions = { onSave: saveSeed, onShare: shareSeed };
+
+  /**
+   * Puts a stored or shared seed back on screen: restores the query that
+   * found it, then runs that query against the one seed.
+   */
+  function applyRecord(record: SeedRecord, doneMessage: string): void {
+    showError(null);
+    editionSel.value = String(record.edition);
+    applyEdition();
+    if (MC_VERSIONS.some((v) => v.id === record.mc)) versionSel.value = String(record.mc);
+    targetSel.value = String(record.target);
+    picker.applyPreset({
+      key: 'shared', name: 'Shared', blurb: '',
+      criteria: record.criteria, rules: record.rules,
+    });
+    checkSeedInput.value = record.seed;
+    checkBtn.click();
+    setSavedNote(doneMessage);
+    savedPanel.hidden = saved.length === 0;
+  }
+
+  renderSaved();
+
+  /*
+   * A share link carries its payload in the fragment, which browsers never
+   * send to the host. Opening one restores the query and checks the seed.
+   */
+  const openSharedLink = (): void => {
+    const match = /(?:^|[#&])s=([A-Za-z0-9_-]+)/.exec(location.hash);
+    if (!match) return;
+    const result = decodeShare(match[1]!);
+    if (!result.ok) {
+      savedPanel.hidden = false;
+      setSavedNote(result.reason === 'expired'
+        ? `That share link has expired. Links last ${SHARE_DAYS} days.`
+        : 'That share link could not be read.');
+      return;
+    }
+    const left = daysLeft(result.expiresAt);
+    applyRecord(result.record, `Opened a shared seed. The link expires in ${left} day${left === 1 ? '' : 's'}.`);
+  };
+
   const savePreset = (): void => {
     const name = presetNameInput.value.trim().slice(0, MAX_PRESET_NAME);
     if (name === '') {
@@ -521,6 +714,7 @@ async function main(): Promise<void> {
       return;
     }
 
+    lastQuery = config;
     lastRadii = config.criteria.map((c) => c.radius);
     // A new search starts a clean list, so old matches from a different query
     // cannot sit alongside the new ones.
@@ -600,6 +794,7 @@ async function main(): Promise<void> {
     }
 
     pool?.stop();
+    lastQuery = config;
     lastRadii = config.criteria.map((c) => c.radius);
     results = [];
     resultsEl.replaceChildren();
@@ -627,6 +822,9 @@ async function main(): Promise<void> {
       return;
     }
     addMatches([found]);
+    // Nothing is running to flush the list here: the stats timer only ticks
+    // during a search, so a checked seed has to be drawn straight away.
+    flushResults();
     statusEl.textContent = 'That seed matches everything you ticked.';
     statusEl.className = 'status done';
   });
@@ -677,6 +875,9 @@ async function main(): Promise<void> {
     statusEl.textContent = '';
     progressPanel.hidden = true;
   });
+
+  // Last, so a shared link lands on a fully wired page.
+  openSharedLink();
 }
 
 void main();

@@ -499,7 +499,17 @@ function openLargeMap(m: Match, radii: readonly number[]): void {
   redraw();
 }
 
-export function renderResult(m: Match, radii: readonly number[]): HTMLElement {
+/** Extra controls a card carries, when the page has somewhere to put them. */
+export interface ResultActions {
+  readonly onSave: (m: Match) => void;
+  readonly onShare: (m: Match, button: HTMLButtonElement) => void;
+}
+
+export function renderResult(
+  m: Match,
+  radii: readonly number[],
+  actions?: ResultActions,
+): HTMLElement {
   const card = document.createElement('article');
   card.className = 'result';
 
@@ -527,7 +537,23 @@ export function renderResult(m: Match, radii: readonly number[]): HTMLElement {
   spawn.className = 'spawn';
   spawn.textContent = `spawn ${m.spawnX}, ${m.spawnZ}`;
 
-  head.append(seed, copy, spawn);
+  head.append(seed, copy);
+  if (actions) {
+    const save = document.createElement('button');
+    save.type = 'button';
+    save.className = 'copy';
+    save.textContent = 'Save';
+    save.addEventListener('click', () => actions.onSave(m));
+
+    const share = document.createElement('button');
+    share.type = 'button';
+    share.className = 'copy';
+    share.textContent = 'Share';
+    share.addEventListener('click', () => actions.onShare(m, share));
+
+    head.append(save, share);
+  }
+  head.append(spawn);
   left.append(head);
 
   const list = document.createElement('ul');

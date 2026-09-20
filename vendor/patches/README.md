@@ -3,7 +3,8 @@
 Upstream [Cubiomes](https://github.com/Cubitect/cubiomes) has not been updated
 since November 2024 and stops at the 1.21 Winter Drop. Minecraft has since
 shipped 1.21.4 through 1.21.11 and then moved to year-based version numbers,
-with 26.1 and 26.2 ("Chaos Cubed", June 2026).
+with 26.1, 26.2 ("Chaos Cubed", June 2026) and 26.3 ("Wilderness Bound",
+September 2026).
 
 `wasm/build.sh` compiles the pinned submodule with these patches applied to a
 scratch copy, so `vendor/cubiomes` itself is never modified.

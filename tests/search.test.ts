@@ -18,6 +18,7 @@ const MC_1_21_4 = 28;
 const MC_1_21_5 = 29;
 const MC_26_1 = 36;
 const MC_26_2 = 39;
+const MC_26_3 = 40;
 
 const MAX_OUT = 64;
 const CRIT_INTS = 10;
@@ -265,6 +266,43 @@ describe('biome criteria', () => {
   });
 });
 
+describe('26.3', () => {
+  const DAPPLED_FOREST = 188;
+
+  it('gates the dappled forest to 26.3', () => {
+    expect(M._sf_biome_supported(DAPPLED_FOREST, MC_26_2)).toBe(0);
+    expect(M._sf_biome_supported(DAPPLED_FOREST, MC_26_3)).not.toBe(0);
+  });
+
+  it('refuses a dappled forest search on 26.2 rather than returning nothing', () => {
+    M.HEAP32.set([K_BIOME, 0, DAPPLED_FOREST, 0, 0, 0, 0, 70, 500, -1], critPtr >> 2);
+    expect(M._sf_configure(MC_26_2, 0, 0, 0, critPtr, 1, pairPtr, 0)).toBe(-4);
+    expect(M._sf_configure(MC_26_3, 0, 0, 0, critPtr, 1, pairPtr, 0)).toBe(1);
+  });
+
+  it('actually generates dappled forest on 26.3', () => {
+    const found = search(
+      MC_26_3, 0, 0,
+      [[K_BIOME, 0, DAPPLED_FOREST, 0, 0, 0, 0, 70, 2_000]],
+      0n, 400,
+    );
+    expect(found.length).toBeGreaterThan(0);
+  });
+
+  it('keeps 26.2 biomes working on 26.3', () => {
+    // A new biome tree replaces the old one wholesale, so the previous drop's
+    // additions have to survive the swap.
+    const SULFUR_CAVES = 187;
+    expect(M._sf_biome_supported(SULFUR_CAVES, MC_26_3)).not.toBe(0);
+    const found = search(
+      MC_26_3, 0, 0,
+      [[K_BIOME, 0, SULFUR_CAVES, 0, 0, 0, 0, -16, 500]],
+      0n, 200,
+    );
+    expect(found.length).toBeGreaterThan(0);
+  });
+});
+
 describe('double-checking against the exact spawn', () => {
   const ORIGIN = 0;
   const ESTIMATE = 1;
@@ -484,7 +522,7 @@ describe('version range', () => {
   const SULFUR_CAVES = 187;
 
   it('reaches 26.2, the current release', () => {
-    expect(M._sf_mc_newest()).toBe(MC_26_2);
+    expect(M._sf_mc_newest()).toBe(MC_26_3);
   });
 
   it('gates the biomes each version actually has', () => {
