@@ -10,8 +10,9 @@
     />
     <link rel="canonical" href="https://fwsoapy.github.io/seedforge/" />
     <meta name="author" content="fwsoapy" />
-    <meta name="theme-color" content="#f4f6f9" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#10141a" media="(prefers-color-scheme: dark)" />
+    <!-- One green for the browser bar and for the colored edge of link previews
+         (Discord reads the first theme-color it finds). -->
+    <meta name="theme-color" content="#5ac36a" />
     <meta
       name="keywords"
       content="minecraft seed finder, minecraft seed map, seed search, structure finder, biome finder, village finder, stronghold finder, bastion finder, ancient city finder, ruined portal finder, java edition, bedrock edition, cubiomes, webassembly"
@@ -27,17 +28,18 @@
       property="og:description"
       content="Search Minecraft seeds where every structure and biome you pick generates near spawn. Per-structure distances, proximity rules, versions up to 26.3. Runs entirely in your browser."
     />
-    <meta property="og:image" content="https://fwsoapy.github.io/seedforge/og.png" />
+    <meta property="og:image" content="https://fwsoapy.github.io/seedforge/og-card.png" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="SeedForge, a Minecraft seed finder for Java and Bedrock" />
+    <meta property="og:image:alt" content="SeedForge searching for a village, a ruined portal and the deep dark near spawn, with a result and its map" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="SeedForge - Minecraft Seed Finder for Java and Bedrock" />
     <meta
       name="twitter:description"
       content="Search Minecraft seeds where every structure and biome you pick generates near spawn. Runs entirely in your browser."
     />
-    <meta name="twitter:image" content="https://fwsoapy.github.io/seedforge/og.png" />
+    <meta name="twitter:image" content="https://fwsoapy.github.io/seedforge/og-card.png" />
 
     <link rel="icon" href="./logo.png" type="image/png" />
     <link rel="apple-touch-icon" href="./logo.png" />
@@ -62,7 +64,7 @@
         "license": "https://opensource.org/licenses/MIT",
         "codeRepository": "https://github.com/fwsoapy/seedforge",
         "programmingLanguage": ["TypeScript", "C", "WebAssembly"],
-        "screenshot": "https://fwsoapy.github.io/seedforge/og.png",
+        "screenshot": "https://fwsoapy.github.io/seedforge/og-card.png",
         "description": "A client-side Minecraft seed finder for Java and Bedrock Edition. Pick the structures and biomes you want, give each its own distance from spawn, add proximity rules between them, and search for seeds where all of it generates near spawn. Nothing is stored or sent anywhere; the world generation is recomputed in your browser with Cubiomes compiled to WebAssembly.",
         "featureList": [
           "Search by structure: village, ruined portal, ancient city, stronghold, bastion remnant, nether fortress, ocean monument, woodland mansion, trial chamber and more",
